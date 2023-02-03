@@ -1,4 +1,4 @@
-use actix_files::NamedFile;
+use actix_files::{Files, NamedFile};
 use actix_web::middleware::Logger;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, Result};
 use env_logger::Env;
@@ -12,6 +12,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(Logger::default())
+            .service(Files::new("/static", "./public/static"))
             .service(index)
             .service(echo)
             .service(liveness_probe)
