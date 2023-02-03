@@ -9,8 +9,33 @@
   <link rel="stylesheet" type="text/css" href="/static/styles.css" />
 </head>
 <body>
-  <h1>pd2dsy4web</h1>
 
-  <p>Hello, world!</p>
+  <main>
+
+    <h1>pd2dsy4web</h1>
+
+    <p>Hello, world!</p>
+
+    <form type="post" action="/build">
+      <div class="form-element">
+        <h2>Board</h2>
+        <select name="board">
+          <option value="seed">seed</option>
+          <option value="pod">pod</option>
+        </select>
+      </div>
+
+      <div class="form-element">
+        <h2>Patch file</h2>
+        <input type="file" />
+      </div>
+
+      <p>
+        <input type="submit" value="Build" />
+      </p>
+    </form>
+
+  </main>
+
 </body>
 </html>
