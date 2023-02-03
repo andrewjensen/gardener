@@ -1,10 +1,18 @@
-use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
+use actix_files::NamedFile;
+use actix_web::middleware::Logger;
+use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, Result};
+use env_logger::Env;
+use log::debug;
+use std::env;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
+
     HttpServer::new(|| {
         App::new()
-            .service(hello)
+            .wrap(Logger::default())
+            .service(index)
             .service(echo)
             .service(liveness_probe)
             .service(readiness_probe)
@@ -15,8 +23,14 @@ async fn main() -> std::io::Result<()> {
 }
 
 #[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+async fn index() -> Result<NamedFile> {
+    let root_path = env::current_dir().unwrap();
+    let mut index_path = root_path.clone();
+    index_path.push("public");
+    index_path.push("index.html");
+    debug!("Path to index file: {:?}", index_path);
+
+    Ok(NamedFile::open(index_path)?)
 }
 
 #[post("/echo")]
