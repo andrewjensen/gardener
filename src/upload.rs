@@ -8,6 +8,8 @@ use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Regex;
 use serde::Serialize;
+use std::fs;
+use std::io::prelude::*;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -53,9 +55,9 @@ pub async fn upload_route(mut payload: Multipart, data: web::Data<AppState>) -> 
     let upload_id = Uuid::new_v4();
     info!("Starting the upload endpoint... upload_id = {}", upload_id);
 
-    let mut board: Option<Board> = None;
-    let mut filename: Option<String> = None;
-    let mut file_contents: Option<String> = None;
+    let mut board_in: Option<Board> = None;
+    let mut filename_in: Option<String> = None;
+    let mut file_contents_in: Option<String> = None;
 
     while let Some(item) = payload.next().await {
         let mut field = item?;
@@ -72,13 +74,13 @@ pub async fn upload_route(mut payload: Multipart, data: web::Data<AppState>) -> 
         }
 
         match parse_upload_form_item(&field, &field_contents) {
-            UploadFormItem::BoardOption(board_value) => board = Some(board_value),
+            UploadFormItem::BoardOption(board_value) => board_in = Some(board_value),
             UploadFormItem::FileUpload {
                 filename: found_filename,
                 file_contents: found_contents,
             } => {
-                filename = Some(found_filename);
-                file_contents = Some(found_contents);
+                filename_in = Some(found_filename);
+                file_contents_in = Some(found_contents);
             }
             UploadFormItem::Unrecognized => {
                 unreachable!();
@@ -86,19 +88,32 @@ pub async fn upload_route(mut payload: Multipart, data: web::Data<AppState>) -> 
         }
     }
 
+    // TODO: handle cases where parts are missing
+    let board = board_in.unwrap();
+    let filename = filename_in.unwrap();
+    let file_contents = file_contents_in.unwrap();
+
     debug!("Board result: {:?}", board);
     debug!("Filename: {:?}", filename);
     debug!("File contents: {:?}", file_contents);
 
-    // TODO: handle cases where parts are missing
-
     let upload_meta = UploadMeta {
         id: upload_id.to_string(),
-        board: board.unwrap(),
-        filename: filename.unwrap(),
-        file_contents: file_contents.unwrap(),
+        board,
+        filename,
+        file_contents: file_contents.clone(),
     };
     debug!("Created upload meta: {:?}", &upload_meta);
+
+    // TODO: handle fs errors!
+    let contents_to_disk = file_contents.clone();
+    web::block(move || {
+        fs::create_dir(format!("workspace/{upload_id}")).unwrap();
+        let mut file = fs::File::create(format!("workspace/{upload_id}/patch.pd")).unwrap();
+        file.write_all(contents_to_disk.as_bytes()).unwrap();
+    })
+    .await
+    .unwrap();
 
     let mut uploads = data.uploads.lock().unwrap();
     uploads.insert(upload_id.to_string(), upload_meta);
