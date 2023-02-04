@@ -16,7 +16,7 @@
 
     <p>Hello, world!</p>
 
-    <form type="post" action="/build">
+    <form action="/build" method="post" enctype="multipart/form-data">
       <div class="form-element">
         <h2>Board</h2>
         <select name="board">
@@ -27,7 +27,7 @@
 
       <div class="form-element">
         <h2>Patch file</h2>
-        <input type="file" />
+        <input type="file" name="pd_patch" />
       </div>
 
       <p>
