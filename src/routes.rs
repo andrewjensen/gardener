@@ -46,8 +46,13 @@ pub async fn upload_route(
         Some(patch_meta) => {
             write_patch_to_disk(&patch_meta.id, &patch_meta.file_contents).await;
 
+            let patch_id = patch_meta.id.clone();
+
             let mut patches = patches_store.patches.lock().unwrap();
-            patches.insert(patch_meta.id.clone(), patch_meta);
+            patches.insert(patch_id.clone(), patch_meta);
+
+            let mut queue = patches_store.compilation_queue.lock().unwrap();
+            queue.push_back(patch_id.clone());
 
             let view_path = get_view_path("upload_success");
 

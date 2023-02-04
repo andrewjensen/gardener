@@ -17,6 +17,7 @@ pub type PatchesMap = Mutex<HashMap<String, PatchMeta>>;
 #[derive(Serialize, Debug, Clone)]
 pub struct PatchMeta {
     pub id: String,
+    pub status: PatchStatus,
     pub board: Board,
     pub filename: String,
     pub file_contents: String,
@@ -32,4 +33,11 @@ impl Responder for PatchMeta {
             .content_type(ContentType::json())
             .body(body)
     }
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub enum PatchStatus {
+    Uploaded,
+    Compiling,
+    Compiled,
 }

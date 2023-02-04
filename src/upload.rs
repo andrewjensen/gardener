@@ -10,7 +10,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::boards::Board;
-use crate::patches::PatchMeta;
+use crate::patches::{PatchMeta, PatchStatus};
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
@@ -73,6 +73,7 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Option<PatchMeta> {
 
     let patch_meta = PatchMeta {
         id: patch_id.to_string(),
+        status: PatchStatus::Uploaded,
         board,
         filename,
         file_contents,
