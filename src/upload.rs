@@ -1,10 +1,13 @@
 use actix_files::NamedFile;
 use actix_multipart::{Field, Multipart};
-use actix_web::{post, Result};
+use actix_web::body::BoxBody;
+use actix_web::http::header::ContentType;
+use actix_web::{post, HttpRequest, HttpResponse, Responder, Result};
 use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Regex;
+use serde::Serialize;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -13,6 +16,26 @@ use crate::views::get_view_path;
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct UploadMeta {
+    pub id: String,
+    pub board: Board,
+    pub filename: String,
+    pub file_contents: String,
+}
+
+impl Responder for UploadMeta {
+    type Body = BoxBody;
+
+    fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
+        let body = serde_json::to_string(&self).unwrap();
+
+        HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .body(body)
+    }
 }
 
 enum UploadFormItem {

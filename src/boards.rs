@@ -1,9 +1,10 @@
+use serde::Serialize;
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParseBoardError;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub enum Board {
     Seed,
     Pod,
