@@ -3,6 +3,7 @@ use actix_web::middleware::Logger;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use env_logger::Env;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 mod api;
 mod boards;
@@ -17,7 +18,7 @@ use crate::upload::{upload_route, UploadMeta};
 use crate::views::get_view_path;
 
 pub struct AppState {
-    uploads: HashMap<String, UploadMeta>,
+    uploads: Mutex<HashMap<String, UploadMeta>>,
 }
 
 #[actix_web::main]
@@ -44,11 +45,13 @@ async fn main() -> std::io::Result<()> {
         },
     );
 
+    let app_state = web::Data::new(AppState {
+        uploads: Mutex::new(mock_uploads.clone()),
+    });
+
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppState {
-                uploads: mock_uploads.clone(),
-            }))
+            .app_data(app_state.clone())
             .wrap(Logger::default())
             .service(Files::new("/static", "./public/static"))
             .service(index_route)

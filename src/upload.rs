@@ -2,7 +2,7 @@ use actix_files::NamedFile;
 use actix_multipart::{Field, Multipart};
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
-use actix_web::{post, HttpRequest, HttpResponse, Responder, Result};
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder, Result};
 use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
 use log::{debug, info};
@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::boards::Board;
 use crate::views::get_view_path;
+use crate::AppState;
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
@@ -48,7 +49,7 @@ enum UploadFormItem {
 }
 
 #[post("/upload")]
-pub async fn upload_route(mut payload: Multipart) -> Result<NamedFile> {
+pub async fn upload_route(mut payload: Multipart, data: web::Data<AppState>) -> Result<NamedFile> {
     let upload_id = Uuid::new_v4();
     info!("Starting the upload endpoint... upload_id = {}", upload_id);
 
@@ -85,9 +86,22 @@ pub async fn upload_route(mut payload: Multipart) -> Result<NamedFile> {
         }
     }
 
-    info!("Board result: {:?}", board);
-    info!("Filename: {:?}", filename);
-    info!("File contents: {:?}", file_contents);
+    debug!("Board result: {:?}", board);
+    debug!("Filename: {:?}", filename);
+    debug!("File contents: {:?}", file_contents);
+
+    // TODO: handle cases where parts are missing
+
+    let upload_meta = UploadMeta {
+        id: upload_id.to_string(),
+        board: board.unwrap(),
+        filename: filename.unwrap(),
+        file_contents: file_contents.unwrap(),
+    };
+    debug!("Created upload meta: {:?}", &upload_meta);
+
+    let mut uploads = data.uploads.lock().unwrap();
+    uploads.insert(upload_id.to_string(), upload_meta);
 
     let view_path = get_view_path("upload_success");
 

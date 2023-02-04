@@ -29,7 +29,7 @@ impl Responder for UploadListResponse {
 async fn list_uploads_route(data: web::Data<AppState>) -> impl Responder {
     warn!("TODO: put this endpoint behind authentication");
 
-    let uploads = data.uploads.clone();
+    let uploads = data.uploads.lock().unwrap().clone();
 
     UploadListResponse { uploads }
 }
@@ -41,7 +41,7 @@ async fn get_upload_by_id_route(
 ) -> impl Responder {
     let upload_id = path.into_inner();
 
-    let uploads = &data.uploads;
+    let uploads = data.uploads.lock().unwrap();
 
     match uploads.get(&upload_id) {
         Some(upload_meta) => upload_meta.clone(),
