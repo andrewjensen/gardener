@@ -1,23 +1,22 @@
-use actix_files::{Files, NamedFile};
+use actix_files::Files;
 use actix_web::middleware::Logger;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{web, App, HttpServer};
 use env_logger::Env;
 use log::info;
 use std::sync::Arc;
 
-mod api;
 mod boards;
 mod compilation_worker;
-mod health_checks;
 mod patches;
+mod routes;
 mod upload;
 mod views;
 
-use crate::api::{get_patch_by_id_route, list_patches_route};
 use crate::compilation_worker::init_compilation_worker;
-use crate::health_checks::{liveness_probe_route, readiness_probe_route};
-use crate::upload::upload_route;
-use crate::views::get_view_path;
+use crate::routes::{
+    get_patch_by_id_route, index_route, list_patches_route, liveness_probe_route,
+    readiness_probe_route, upload_route,
+};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -34,7 +33,6 @@ async fn main() -> std::io::Result<()> {
             .service(upload_route)
             .service(list_patches_route)
             .service(get_patch_by_id_route)
-            .service(echo_route)
             .service(liveness_probe_route)
             .service(readiness_probe_route)
     })
@@ -49,16 +47,4 @@ async fn main() -> std::io::Result<()> {
     info!("All processes shut down gracefully.");
 
     Ok(())
-}
-
-#[get("/")]
-async fn index_route() -> Result<NamedFile> {
-    let view_path = get_view_path("home");
-
-    Ok(NamedFile::open(view_path)?)
-}
-
-#[post("/echo")]
-async fn echo_route(req_body: String) -> impl Responder {
-    HttpResponse::Ok().body(req_body)
 }

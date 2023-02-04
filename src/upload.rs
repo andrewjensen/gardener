@@ -1,11 +1,8 @@
-use actix_files::NamedFile;
 use actix_multipart::{Field, Multipart};
-use actix_web::body::BoxBody;
-use actix_web::http::header::ContentType;
-use actix_web::{post, web, HttpRequest, HttpResponse, Responder, Result};
+use actix_web::web;
 use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::debug;
 use regex::Regex;
 use std::fs;
 use std::io::prelude::*;
@@ -13,23 +10,10 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::boards::Board;
-use crate::patches::{PatchMeta, PatchesStore};
-use crate::views::get_view_path;
+use crate::patches::PatchMeta;
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
-}
-
-impl Responder for PatchMeta {
-    type Body = BoxBody;
-
-    fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
-        let body = serde_json::to_string(&self).unwrap();
-
-        HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .body(body)
-    }
 }
 
 enum UploadFormItem {
@@ -41,27 +25,22 @@ enum UploadFormItem {
     Unrecognized,
 }
 
-#[post("/upload")]
-pub async fn upload_route(
-    mut payload: Multipart,
-    patches_store: web::Data<PatchesStore>,
-) -> Result<NamedFile> {
-    let patch_id = Uuid::new_v4();
-    info!("Starting the upload endpoint... patch_id = {}", patch_id);
+pub async fn process_patch_upload(mut payload: Multipart) -> Option<PatchMeta> {
+    // TODO: this should return a Result instead
 
     let mut board_in: Option<Board> = None;
     let mut filename_in: Option<String> = None;
     let mut file_contents_in: Option<String> = None;
 
     while let Some(item) = payload.next().await {
-        let mut field = item?;
+        let mut field = item.unwrap();
         debug!("Item is a field: {:?}", field);
 
         let mut field_contents: String = "".to_string();
 
         while let Some(chunk) = field.next().await {
-            let chunk_bytes = chunk?;
-            let chunk_contents = std::str::from_utf8(&chunk_bytes)?;
+            let chunk_bytes = chunk.unwrap();
+            let chunk_contents = std::str::from_utf8(&chunk_bytes).unwrap();
             debug!("chunk contents:\n{}", chunk_contents);
 
             field_contents.push_str(chunk_contents);
@@ -83,6 +62,7 @@ pub async fn upload_route(
     }
 
     // TODO: handle cases where parts are missing
+    let patch_id = Uuid::new_v4();
     let board = board_in.unwrap();
     let filename = filename_in.unwrap();
     let file_contents = file_contents_in.unwrap();
@@ -95,26 +75,26 @@ pub async fn upload_route(
         id: patch_id.to_string(),
         board,
         filename,
-        file_contents: file_contents.clone(),
+        file_contents,
     };
     debug!("Created patch meta: {:?}", &patch_meta);
 
+    Some(patch_meta)
+}
+
+pub async fn write_patch_to_disk(patch_id: &str, file_contents: &str) {
     // TODO: handle fs errors!
-    let contents_to_disk = file_contents.clone();
+
+    let patch_id = patch_id.to_string();
+    let file_contents = file_contents.to_string();
+
     web::block(move || {
         fs::create_dir(format!("workspace/{patch_id}")).unwrap();
         let mut file = fs::File::create(format!("workspace/{patch_id}/patch.pd")).unwrap();
-        file.write_all(contents_to_disk.as_bytes()).unwrap();
+        file.write_all(file_contents.as_bytes()).unwrap();
     })
     .await
     .unwrap();
-
-    let mut patches = patches_store.patches.lock().unwrap();
-    patches.insert(patch_id.to_string(), patch_meta);
-
-    let view_path = get_view_path("upload_success");
-
-    Ok(NamedFile::open(view_path)?)
 }
 
 fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> UploadFormItem {
