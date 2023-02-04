@@ -5,15 +5,14 @@ use log::warn;
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::upload::UploadMeta;
-use crate::AppState;
+use crate::patches::{PatchMeta, PatchesStore};
 
 #[derive(Serialize, Debug)]
-struct UploadListResponse {
-    uploads: HashMap<String, UploadMeta>,
+struct PatchListResponse {
+    patches: HashMap<String, PatchMeta>,
 }
 
-impl Responder for UploadListResponse {
+impl Responder for PatchListResponse {
     type Body = BoxBody;
 
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
@@ -25,26 +24,26 @@ impl Responder for UploadListResponse {
     }
 }
 
-#[get("/api/uploads")]
-async fn list_uploads_route(data: web::Data<AppState>) -> impl Responder {
+#[get("/api/patches")]
+async fn list_patches_route(patches_store: web::Data<PatchesStore>) -> impl Responder {
     warn!("TODO: put this endpoint behind authentication");
 
-    let uploads = data.uploads.lock().unwrap().clone();
+    let patches = patches_store.patches.lock().unwrap().clone();
 
-    UploadListResponse { uploads }
+    PatchListResponse { patches }
 }
 
-#[get("/api/uploads/{upload_id}")]
-async fn get_upload_by_id_route(
+#[get("/api/patches/{patch_id}")]
+async fn get_patch_by_id_route(
     path: web::Path<String>,
-    data: web::Data<AppState>,
+    patches_store: web::Data<PatchesStore>,
 ) -> impl Responder {
-    let upload_id = path.into_inner();
+    let patch_id = path.into_inner();
 
-    let uploads = data.uploads.lock().unwrap();
+    let patches = patches_store.patches.lock().unwrap();
 
-    match uploads.get(&upload_id) {
-        Some(upload_meta) => upload_meta.clone(),
+    match patches.get(&patch_id) {
+        Some(patch_meta) => patch_meta.clone(),
         None => {
             warn!("TODO: figure out how to handle the not-found case properly");
 

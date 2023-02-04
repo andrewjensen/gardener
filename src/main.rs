@@ -2,69 +2,53 @@ use actix_files::{Files, NamedFile};
 use actix_web::middleware::Logger;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use env_logger::Env;
-use std::collections::HashMap;
-use std::sync::Mutex;
+use log::info;
+use std::sync::Arc;
 
 mod api;
 mod boards;
+mod compilation_worker;
 mod health_checks;
+mod patches;
 mod upload;
 mod views;
 
-use crate::api::{get_upload_by_id_route, list_uploads_route};
-use crate::boards::Board;
+use crate::api::{get_patch_by_id_route, list_patches_route};
+use crate::compilation_worker::init_compilation_worker;
 use crate::health_checks::{liveness_probe_route, readiness_probe_route};
-use crate::upload::{upload_route, UploadMeta};
+use crate::upload::upload_route;
 use crate::views::get_view_path;
-
-pub struct AppState {
-    uploads: Mutex<HashMap<String, UploadMeta>>,
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
 
-    let mut mock_uploads = HashMap::new();
-    mock_uploads.insert(
-        "fc2af63b-2e9d-467b-a598-4c603ab46dda".to_string(),
-        UploadMeta {
-            id: "fc2af63b-2e9d-467b-a598-4c603ab46dda".to_string(),
-            board: Board::Seed,
-            filename: "some_file.pd".to_string(),
-            file_contents: "contents...".to_string(),
-        },
-    );
-    mock_uploads.insert(
-        "45b40974-a68e-4ea9-ae90-556b28f77aa2".to_string(),
-        UploadMeta {
-            id: "45b40974-a68e-4ea9-ae90-556b28f77aa2".to_string(),
-            board: Board::Seed,
-            filename: "some_other_file.pd".to_string(),
-            file_contents: "other contents...".to_string(),
-        },
-    );
-
-    let app_state = web::Data::new(AppState {
-        uploads: Mutex::new(mock_uploads.clone()),
-    });
+    let (patches_store, worker_join_handle, worker_cancel) = init_compilation_worker();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(app_state.clone())
+            .app_data(web::Data::from(Arc::clone(&patches_store)))
             .wrap(Logger::default())
             .service(Files::new("/static", "./public/static"))
             .service(index_route)
             .service(upload_route)
-            .service(list_uploads_route)
-            .service(get_upload_by_id_route)
+            .service(list_patches_route)
+            .service(get_patch_by_id_route)
             .service(echo_route)
             .service(liveness_probe_route)
             .service(readiness_probe_route)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
-    .await
+    .await?;
+
+    worker_cancel.cancel();
+
+    worker_join_handle.await.unwrap();
+
+    info!("All processes shut down gracefully.");
+
+    Ok(())
 }
 
 #[get("/")]

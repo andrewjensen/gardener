@@ -7,29 +7,20 @@ use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Regex;
-use serde::Serialize;
 use std::fs;
 use std::io::prelude::*;
 use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::boards::Board;
+use crate::patches::{PatchMeta, PatchesStore};
 use crate::views::get_view_path;
-use crate::AppState;
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
 }
 
-#[derive(Serialize, Debug, Clone)]
-pub struct UploadMeta {
-    pub id: String,
-    pub board: Board,
-    pub filename: String,
-    pub file_contents: String,
-}
-
-impl Responder for UploadMeta {
+impl Responder for PatchMeta {
     type Body = BoxBody;
 
     fn respond_to(self, _req: &HttpRequest) -> HttpResponse<Self::Body> {
@@ -51,9 +42,12 @@ enum UploadFormItem {
 }
 
 #[post("/upload")]
-pub async fn upload_route(mut payload: Multipart, data: web::Data<AppState>) -> Result<NamedFile> {
-    let upload_id = Uuid::new_v4();
-    info!("Starting the upload endpoint... upload_id = {}", upload_id);
+pub async fn upload_route(
+    mut payload: Multipart,
+    patches_store: web::Data<PatchesStore>,
+) -> Result<NamedFile> {
+    let patch_id = Uuid::new_v4();
+    info!("Starting the upload endpoint... patch_id = {}", patch_id);
 
     let mut board_in: Option<Board> = None;
     let mut filename_in: Option<String> = None;
@@ -97,26 +91,26 @@ pub async fn upload_route(mut payload: Multipart, data: web::Data<AppState>) -> 
     debug!("Filename: {:?}", filename);
     debug!("File contents: {:?}", file_contents);
 
-    let upload_meta = UploadMeta {
-        id: upload_id.to_string(),
+    let patch_meta = PatchMeta {
+        id: patch_id.to_string(),
         board,
         filename,
         file_contents: file_contents.clone(),
     };
-    debug!("Created upload meta: {:?}", &upload_meta);
+    debug!("Created patch meta: {:?}", &patch_meta);
 
     // TODO: handle fs errors!
     let contents_to_disk = file_contents.clone();
     web::block(move || {
-        fs::create_dir(format!("workspace/{upload_id}")).unwrap();
-        let mut file = fs::File::create(format!("workspace/{upload_id}/patch.pd")).unwrap();
+        fs::create_dir(format!("workspace/{patch_id}")).unwrap();
+        let mut file = fs::File::create(format!("workspace/{patch_id}/patch.pd")).unwrap();
         file.write_all(contents_to_disk.as_bytes()).unwrap();
     })
     .await
     .unwrap();
 
-    let mut uploads = data.uploads.lock().unwrap();
-    uploads.insert(upload_id.to_string(), upload_meta);
+    let mut patches = patches_store.patches.lock().unwrap();
+    patches.insert(patch_id.to_string(), patch_meta);
 
     let view_path = get_view_path("upload_success");
 
