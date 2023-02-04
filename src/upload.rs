@@ -1,5 +1,6 @@
+use actix_files::NamedFile;
 use actix_multipart::{Field, Multipart};
-use actix_web::{post, HttpResponse, Result};
+use actix_web::{post, Result};
 use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
 use log::{debug, info};
@@ -8,6 +9,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::boards::Board;
+use crate::views::get_view_path;
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
@@ -23,7 +25,7 @@ enum UploadFormItem {
 }
 
 #[post("/upload")]
-pub async fn upload_route(mut payload: Multipart) -> Result<HttpResponse> {
+pub async fn upload_route(mut payload: Multipart) -> Result<NamedFile> {
     let upload_id = Uuid::new_v4();
     info!("Starting the upload endpoint... upload_id = {}", upload_id);
 
@@ -64,7 +66,9 @@ pub async fn upload_route(mut payload: Multipart) -> Result<HttpResponse> {
     info!("Filename: {:?}", filename);
     info!("File contents: {:?}", file_contents);
 
-    Ok(HttpResponse::Ok().into())
+    let view_path = get_view_path("upload_success");
+
+    Ok(NamedFile::open(view_path)?)
 }
 
 fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> UploadFormItem {

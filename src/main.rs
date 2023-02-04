@@ -2,15 +2,15 @@ use actix_files::{Files, NamedFile};
 use actix_web::middleware::Logger;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, Result};
 use env_logger::Env;
-use log::debug;
-use std::env;
 
 mod boards;
 mod health_checks;
 mod upload;
+mod views;
 
 use crate::health_checks::{liveness_probe_route, readiness_probe_route};
 use crate::upload::upload_route;
+use crate::views::get_view_path;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -33,12 +33,9 @@ async fn main() -> std::io::Result<()> {
 
 #[get("/")]
 async fn index_route() -> Result<NamedFile> {
-    let mut index_path = env::current_dir().unwrap();
-    index_path.push("public");
-    index_path.push("index.html");
-    debug!("Path to index file: {:?}", index_path);
+    let view_path = get_view_path("home");
 
-    Ok(NamedFile::open(index_path)?)
+    Ok(NamedFile::open(view_path)?)
 }
 
 #[post("/echo")]
