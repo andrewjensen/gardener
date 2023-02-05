@@ -41,9 +41,7 @@ impl Responder for PatchListResponse {
 pub async fn index_route() -> Result<HttpResponse> {
     let res_body = HomeTemplate.render().unwrap();
 
-    Ok(HttpResponse::Ok()
-        .content_type("text/html")
-        .body(res_body))
+    Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
 }
 
 #[post("/upload")]
@@ -71,10 +69,7 @@ pub async fn upload_route(
             .render()
             .unwrap();
 
-
-            Ok(HttpResponse::Ok()
-                .content_type("text/html")
-                .body(res_body))
+            Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
         }
         None => {
             error!("TODO: Something went wrong during the upload, handle gracefully");

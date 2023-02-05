@@ -20,7 +20,12 @@
 
     <p>Patch ID: {{ patch_id }}</p>
 
+    <p>Status: <span id="status">(loading)</span></p>
   </main>
 
+  <script type="text/javascript">
+    window.PATCH_ID = '{{ patch_id }}';
+  </script>
+  <script type="text/javascript" defer src="/static/pollPatchState.js"></script>
 </body>
 </html>
