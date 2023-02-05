@@ -1,5 +1,6 @@
 use log::{debug, error, info};
 use std::collections::{HashMap, VecDeque};
+use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::process::Command;
@@ -51,7 +52,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
         };
 
         if let Some(patch) = patch_to_compile {
-            info!("Time to compile patch {}", patch.id);
+            info!("Compiling patch {}...", patch.id);
 
             // TODO: set the patch's status as "compiling"
 
@@ -112,6 +113,8 @@ async fn compile_patch(patch_id: &str) {
         .arg("--no-build")
         .arg(filename_patch.as_path())
         .current_dir(env_config.dir_pd2dsy.as_path())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .expect("failed to spawn");
     let status_code = child.wait().await.unwrap();
@@ -123,6 +126,8 @@ async fn compile_patch(patch_id: &str) {
     // Step 2: compile binary
     let mut child_2 = Command::new("make")
         .current_dir(dir_patch_build.as_path())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .expect("failed to spawn");
     let status_code_2 = child_2.wait().await.unwrap();

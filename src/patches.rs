@@ -38,6 +38,6 @@ impl Responder for PatchMeta {
 #[derive(Serialize, Debug, Clone)]
 pub enum PatchStatus {
     Uploaded,
-    Compiling,
+    // Compiling, // TODO: add back
     Compiled,
 }
