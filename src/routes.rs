@@ -1,15 +1,24 @@
-use actix_files::NamedFile;
 use actix_multipart::Multipart;
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder, Result};
+use askama::Template;
 use log::{error, info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::patches::{PatchMeta, PatchesStore};
 use crate::upload::{process_patch_upload, write_patch_to_disk};
-use crate::views::get_view_path;
+
+#[derive(Template)]
+#[template(path = "home.html")]
+struct HomeTemplate;
+
+#[derive(Template)]
+#[template(path = "upload_success.html")]
+struct UploadSuccessTemplate<'a> {
+    patch_id: &'a str,
+}
 
 #[derive(Serialize, Debug)]
 struct PatchListResponse {
@@ -29,17 +38,19 @@ impl Responder for PatchListResponse {
 }
 
 #[get("/")]
-pub async fn index_route() -> Result<NamedFile> {
-    let view_path = get_view_path("home");
+pub async fn index_route() -> Result<HttpResponse> {
+    let res_body = HomeTemplate.render().unwrap();
 
-    Ok(NamedFile::open(view_path)?)
+    Ok(HttpResponse::Ok()
+        .content_type("text/html")
+        .body(res_body))
 }
 
 #[post("/upload")]
 pub async fn upload_route(
     payload: Multipart,
     patches_store: web::Data<PatchesStore>,
-) -> Result<NamedFile> {
+) -> Result<HttpResponse> {
     info!("Starting the upload endpoint...");
 
     match process_patch_upload(payload).await {
@@ -52,11 +63,18 @@ pub async fn upload_route(
             patches.insert(patch_id.clone(), patch_meta);
 
             let mut queue = patches_store.compilation_queue.lock().unwrap();
-            queue.push_back(patch_id);
+            queue.push_back(patch_id.clone());
 
-            let view_path = get_view_path("upload_success");
+            let res_body = UploadSuccessTemplate {
+                patch_id: &patch_id,
+            }
+            .render()
+            .unwrap();
 
-            Ok(NamedFile::open(view_path).unwrap())
+
+            Ok(HttpResponse::Ok()
+                .content_type("text/html")
+                .body(res_body))
         }
         None => {
             error!("TODO: Something went wrong during the upload, handle gracefully");

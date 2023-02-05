@@ -11,7 +11,6 @@ mod env_config;
 mod patches;
 mod routes;
 mod upload;
-mod views;
 
 use crate::compilation_worker::init_compilation_worker;
 use crate::env_config::get_env_config;
