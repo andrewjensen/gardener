@@ -90,8 +90,7 @@ pub async fn write_patch_to_disk(patch_id: &str, file_contents: &str) {
     let file_contents = file_contents.to_string();
 
     web::block(move || {
-        fs::create_dir(format!("workspace/{patch_id}")).unwrap();
-        let mut file = fs::File::create(format!("workspace/{patch_id}/patch.pd")).unwrap();
+        let mut file = fs::File::create(format!("workspace/{patch_id}.pd")).unwrap();
         file.write_all(file_contents.as_bytes()).unwrap();
     })
     .await

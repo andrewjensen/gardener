@@ -2,9 +2,12 @@ use log::{debug, error, info};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::{task::JoinHandle, time::sleep};
+use tokio::process::Command;
+use tokio::task::JoinHandle;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use crate::env_config::get_env_config;
 use crate::patches::{PatchMeta, PatchStatus, PatchesStore};
 
 pub fn init_compilation_worker() -> (Arc<PatchesStore>, JoinHandle<()>, CancellationToken) {
@@ -35,11 +38,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
             let patches_lock = patches_store.patches.try_lock();
 
             if let (Ok(mut queue), Ok(patches)) = (queue_lock, patches_lock) {
-                debug!(
-                    "Found {} patches, {} items in the queue",
-                    patches.len(),
-                    queue.len()
-                );
+                debug!("Found {} items in the queue", queue.len());
 
                 if let Some(patch_id) = queue.pop_front() {
                     if let Some(patch_meta) = patches.get(&patch_id) {
@@ -56,8 +55,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
 
             // TODO: set the patch's status as "compiling"
 
-            // TODO: actually compile here
-            sleep(Duration::from_secs(20)).await;
+            compile_patch(&patch.id).await;
 
             info!("Finished compiling patch {}", patch.id);
 
@@ -86,5 +84,50 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
                 break;
             }
         };
+    }
+}
+
+async fn compile_patch(patch_id: &str) {
+    let env_config = get_env_config();
+
+    let mut filename_pd2dsy_script = env_config.dir_pd2dsy.clone();
+    filename_pd2dsy_script.push("pd2dsy.py");
+
+    let mut filename_patch = env_config.dir_workspace.clone();
+    filename_patch.push(format!("{patch_id}.pd"));
+
+    let mut dir_patch_build = env_config.dir_pd2dsy.clone();
+    dir_patch_build.push("builds");
+    dir_patch_build.push(patch_id);
+
+    // Step 1: generate C++ code from the patch
+    let mut child = Command::new("python3")
+        .arg(filename_pd2dsy_script.as_path())
+        .arg("--board")
+        .arg("pod")
+        .arg("--directory")
+        .arg("builds")
+        .arg("--libdaisy-depth")
+        .arg("2")
+        .arg("--no-build")
+        .arg(filename_patch.as_path())
+        .current_dir(env_config.dir_pd2dsy.as_path())
+        .spawn()
+        .expect("failed to spawn");
+    let status_code = child.wait().await.unwrap();
+
+    if !status_code.success() {
+        panic!("TODO: handle case when pd2dsy fails");
+    }
+
+    // Step 2: compile binary
+    let mut child_2 = Command::new("make")
+        .current_dir(dir_patch_build.as_path())
+        .spawn()
+        .expect("failed to spawn");
+    let status_code_2 = child_2.wait().await.unwrap();
+
+    if !status_code_2.success() {
+        panic!("TODO: handle case when make fails");
     }
 }

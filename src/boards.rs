@@ -9,6 +9,9 @@ pub enum Board {
     Seed,
     Pod,
     // TODO: add other boards
+
+    // From pd2dsy help: The supported boards are:
+    // pod, patch, patch_init, field, petal
 }
 
 impl FromStr for Board {
