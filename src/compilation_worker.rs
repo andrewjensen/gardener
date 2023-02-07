@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
-use crate::env_config::get_env_config;
+use crate::env_config::{get_env_config, EnvConfig};
 use crate::patches::{PatchMeta, PatchStatus, PatchesStore};
 
 pub fn init_compilation_worker() -> (Arc<PatchesStore>, JoinHandle<()>, CancellationToken) {
@@ -91,6 +91,16 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
 async fn compile_patch(patch_id: &str) {
     let env_config = get_env_config();
 
+    generate_cpp_code(patch_id, &env_config).await;
+
+    compile_binary(patch_id, &env_config).await;
+
+    // Step 3: copy binary into workspace
+
+    // Step 4: remove compilation dir
+}
+
+async fn generate_cpp_code(patch_id: &str, env_config: &EnvConfig) {
     let mut filename_pd2dsy_script = env_config.dir_pd2dsy.clone();
     filename_pd2dsy_script.push("pd2dsy.py");
 
@@ -98,15 +108,10 @@ async fn compile_patch(patch_id: &str) {
     filename_patch.push("uploads");
     filename_patch.push(format!("{patch_id}.pd"));
 
-    let mut dir_patch_build = env_config.dir_pd2dsy.clone();
-    dir_patch_build.push("builds");
-    dir_patch_build.push(patch_id);
-
-    // Step 1: generate C++ code from the patch
     let mut child = Command::new("python3")
         .arg(filename_pd2dsy_script.as_path())
         .arg("--board")
-        .arg("pod")
+        .arg("pod") // TODO: make dynamic
         .arg("--directory")
         .arg("builds")
         .arg("--libdaisy-depth")
@@ -123,17 +128,22 @@ async fn compile_patch(patch_id: &str) {
     if !status_code.success() {
         panic!("TODO: handle case when pd2dsy fails");
     }
+}
 
-    // Step 2: compile binary
-    let mut child_2 = Command::new("make")
+async fn compile_binary(patch_id: &str, env_config: &EnvConfig) {
+    let mut dir_patch_build = env_config.dir_pd2dsy.clone();
+    dir_patch_build.push("builds");
+    dir_patch_build.push(patch_id);
+
+    let mut child = Command::new("make")
         .current_dir(dir_patch_build.as_path())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .expect("failed to spawn");
-    let status_code_2 = child_2.wait().await.unwrap();
+    let status_code = child.wait().await.unwrap();
 
-    if !status_code_2.success() {
+    if !status_code.success() {
         panic!("TODO: handle case when make fails");
     }
 }
