@@ -95,6 +95,7 @@ async fn compile_patch(patch_id: &str) {
     filename_pd2dsy_script.push("pd2dsy.py");
 
     let mut filename_patch = env_config.dir_workspace.clone();
+    filename_patch.push("uploads");
     filename_patch.push(format!("{patch_id}.pd"));
 
     let mut dir_patch_build = env_config.dir_pd2dsy.clone();
