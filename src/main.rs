@@ -33,6 +33,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::from(Arc::clone(&patches_store)))
             .wrap(Logger::default())
             .service(Files::new("/static", "./public/static"))
+            .service(Files::new("/downloads", "./workspace/downloads"))
             .service(index_route)
             .service(upload_route)
             .service(list_patches_route)

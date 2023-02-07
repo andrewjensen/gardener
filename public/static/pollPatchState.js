@@ -15,7 +15,9 @@ async function main() {
     document.querySelector('#status').innerHTML = patch.status;
 
     if (patch.status === 'Compiled') {
+      document.getElementById('download-area').style.display = 'block';
       completed = true;
+
       break;
     }
 
