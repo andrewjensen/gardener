@@ -571,6 +571,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "gardener"
+version = "0.1.0"
+dependencies = [
+ "actix-files",
+ "actix-multipart",
+ "actix-web",
+ "askama",
+ "env_logger",
+ "futures-util",
+ "lazy_static",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -896,26 +916,6 @@ name = "paste"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d01a5bd0424d00070b0098dd17ebca6f961a959dead1dbcbbbc1d1cd8d3deeba"
-
-[[package]]
-name = "pd2dsy4web"
-version = "0.1.0"
-dependencies = [
- "actix-files",
- "actix-multipart",
- "actix-web",
- "askama",
- "env_logger",
- "futures-util",
- "lazy_static",
- "log",
- "regex",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
- "uuid",
-]
 
 [[package]]
 name = "percent-encoding"

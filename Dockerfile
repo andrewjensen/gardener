@@ -9,7 +9,7 @@ FROM debian:stable AS release
 
 # copy compiled Rust project into new blank image
 WORKDIR /code
-COPY --from=cargo /code/target/release/pd2dsy4web /code
+COPY --from=cargo /code/target/release/gardener /code
 COPY --from=cargo /code/public /code/public
 COPY --from=cargo /code/workspace /code/workspace
 RUN apt update && apt install -y \
