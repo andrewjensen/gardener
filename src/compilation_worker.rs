@@ -62,7 +62,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
             // TODO: this loop is too big and unruly, clean it up
 
             match compile_patch(&patch.id, &patch.board).await {
-                Ok(()) => {},
+                Ok(()) => {}
                 Err(_) => {
                     panic!("TODO: handle cases where compilation fails");
                 }
@@ -122,7 +122,8 @@ async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig
     filename_patch.push("uploads");
     filename_patch.push(format!("{patch_id}.pd"));
 
-    let mut child = Command::new("python3")
+    let mut command = Command::new("python3");
+    command
         .arg(filename_pd2dsy_script.as_path())
         .arg("--board")
         .arg(board.to_str())
@@ -132,18 +133,13 @@ async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig
         .arg("2")
         .arg("--no-build")
         .arg(filename_patch.as_path())
-        .current_dir(env_config.dir_pd2dsy.as_path())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
+        .current_dir(env_config.dir_pd2dsy.as_path());
 
-    // if !env_config.display_compilation_output {
-    //     child
-    //     .stdout(Stdio::null())
-    //     .stderr(Stdio::null());
-    // }
+    if !env_config.display_compilation_output {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
 
-    // child.spawn()?;
+    let mut child = command.spawn()?;
 
     let status_code = child.wait().await?;
 
@@ -162,11 +158,14 @@ async fn compile_binary(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
 
-    let mut child = Command::new("make")
-        .current_dir(dir_patch_build)
-        // .stdout(Stdio::null())
-        // .stderr(Stdio::null())
-        .spawn()?;
+    let mut command = Command::new("make");
+    command.current_dir(dir_patch_build);
+
+    if !env_config.display_compilation_output {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    let mut child = command.spawn()?;
 
     let status_code = child.wait().await?;
 
@@ -193,12 +192,16 @@ async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) -> R
     filename_in_downloads.push("downloads");
     filename_in_downloads.push(format!("daisy-{patch_id}.bin"));
 
-    let mut child = Command::new("mv")
+    let mut command = Command::new("mv");
+    command
         .arg(filename_compiled_binary.as_path())
-        .arg(filename_in_downloads.as_path())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
+        .arg(filename_in_downloads.as_path());
+
+    if !env_config.display_compilation_output {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    let mut child = command.spawn()?;
 
     let status_code = child.wait().await?;
 
@@ -217,12 +220,14 @@ async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) -> Result<()> 
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
 
-    let mut child = Command::new("rm")
-        .arg("-rf")
-        .arg(dir_patch_build.as_path())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()?;
+    let mut command = Command::new("rm");
+    command.arg("-rf").arg(dir_patch_build.as_path());
+
+    if !env_config.display_compilation_output {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    let mut child = command.spawn()?;
 
     let status_code = child.wait().await?;
 
