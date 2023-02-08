@@ -1,14 +1,18 @@
 const MAX_ATTEMPTS = 60;
 const ATTEMPT_INTERVAL_MS = 1000;
 
+const POLLING_ENABLED = true;
+
 main();
 
 async function main() {
   const patchId = window.PATCH_ID;
   console.log('Time to poll patch state!', patchId);
 
+  const maxAttempts = POLLING_ENABLED ? MAX_ATTEMPTS : 1;
+
   let completed = false;
-  for (let attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
     const patch = await fetchPatchMeta(patchId);
     console.log('current patch status:', patch.status);
 
@@ -25,7 +29,7 @@ async function main() {
   }
 
   if (!completed) {
-    alert('Patch never finished compiling after 60 polling attempts!');
+    alert(`Patch never finished compiling after ${maxAttempts} polling attempts!`);
   }
 }
 
