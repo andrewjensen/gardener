@@ -7,6 +7,7 @@ use log::{error, info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 
+use crate::env_config::get_env_config;
 use crate::patches::{PatchMeta, PatchesStore};
 use crate::upload::{process_patch_upload, write_patch_to_disk};
 
@@ -80,12 +81,20 @@ pub async fn upload_route(
 }
 
 #[get("/api/patches")]
-async fn list_patches_route(patches_store: web::Data<PatchesStore>) -> impl Responder {
-    warn!("TODO: put this endpoint behind authentication");
+async fn list_patches_route(
+    req: HttpRequest,
+    patches_store: web::Data<PatchesStore>,
+) -> impl Responder {
+    // TODO: maybe replace with something in here:
+    // https://github.com/actix/actix-extras
+    if is_authenticated(&req) {
+        let patches = patches_store.patches.lock().unwrap().clone();
+        let response_body = PatchListResponse { patches };
 
-    let patches = patches_store.patches.lock().unwrap().clone();
-
-    PatchListResponse { patches }
+        HttpResponse::Ok().body(serde_json::to_string(&response_body).unwrap())
+    } else {
+        HttpResponse::Unauthorized().body("You are not authenticated!")
+    }
 }
 
 #[get("/api/patches/{patch_id}")]
@@ -115,4 +124,15 @@ pub async fn liveness_probe_route() -> impl Responder {
 #[get("/health/ready")]
 pub async fn readiness_probe_route() -> impl Responder {
     HttpResponse::Ok().body("App is ready to receive traffic")
+}
+
+fn is_authenticated(req: &HttpRequest) -> bool {
+    match req.headers().get("Authentication") {
+        Some(auth_header) => {
+            let header_value = auth_header.to_str().unwrap();
+
+            header_value == get_env_config().admin_token
+        }
+        None => false,
+    }
 }
