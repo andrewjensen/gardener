@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use log::{debug, error, info};
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
@@ -58,7 +59,14 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
 
             // TODO: set the patch's status as "compiling"
 
-            compile_patch(&patch.id, &patch.board).await;
+            // TODO: this loop is too big and unruly, clean it up
+
+            match compile_patch(&patch.id, &patch.board).await {
+                Ok(()) => {},
+                Err(_) => {
+                    panic!("TODO: handle cases where compilation fails");
+                }
+            };
 
             info!("Finished compiling patch {}", patch.id);
 
@@ -90,19 +98,21 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
     }
 }
 
-async fn compile_patch(patch_id: &str, board: &Board) {
+async fn compile_patch(patch_id: &str, board: &Board) -> Result<()> {
     let env_config = get_env_config();
 
-    generate_cpp_code(patch_id, board, &env_config).await;
+    generate_cpp_code(patch_id, board, &env_config).await?;
 
-    compile_binary(patch_id, &env_config).await;
+    compile_binary(patch_id, &env_config).await?;
 
-    move_binary_into_workspace(patch_id, &env_config).await;
+    move_binary_into_workspace(patch_id, &env_config).await?;
 
-    remove_build_dir(patch_id, &env_config).await;
+    remove_build_dir(patch_id, &env_config).await?;
+
+    Ok(())
 }
 
-async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig) {
+async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig) -> Result<()> {
     debug!("Generating C++ code...");
 
     let mut filename_pd2dsy_script = env_config.dir_pd2dsy.clone();
@@ -125,34 +135,52 @@ async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig
         .current_dir(env_config.dir_pd2dsy.as_path())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn");
-    let status_code = child.wait().await.unwrap();
+        .spawn()?;
+
+    // if !env_config.display_compilation_output {
+    //     child
+    //     .stdout(Stdio::null())
+    //     .stderr(Stdio::null());
+    // }
+
+    // child.spawn()?;
+
+    let status_code = child.wait().await?;
 
     if !status_code.success() {
-        panic!("TODO: handle case when pd2dsy fails");
+        return Err(anyhow!(
+            "pd2dsy script exited with non-zero exit status: {}",
+            status_code
+        ));
     }
+
+    Ok(())
 }
 
-async fn compile_binary(patch_id: &str, env_config: &EnvConfig) {
+async fn compile_binary(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
     debug!("Compiling binary...");
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
 
     let mut child = Command::new("make")
         .current_dir(dir_patch_build)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn");
-    let status_code = child.wait().await.unwrap();
+        // .stdout(Stdio::null())
+        // .stderr(Stdio::null())
+        .spawn()?;
+
+    let status_code = child.wait().await?;
 
     if !status_code.success() {
-        panic!("TODO: handle case when make fails");
+        return Err(anyhow!(
+            "make exited with non-zero exit status: {}",
+            status_code
+        ));
     }
+
+    Ok(())
 }
 
-async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) {
+async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
     debug!("Moving binary into workspace...");
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
@@ -170,16 +198,21 @@ async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) {
         .arg(filename_in_downloads.as_path())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn");
-    let status_code = child.wait().await.unwrap();
+        .spawn()?;
+
+    let status_code = child.wait().await?;
 
     if !status_code.success() {
-        panic!("TODO: handle case when mv fails");
+        return Err(anyhow!(
+            "mv exited with non-zero exit status: {}",
+            status_code
+        ));
     }
+
+    Ok(())
 }
 
-async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) {
+async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
     debug!("Cleaning up...");
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
@@ -189,13 +222,18 @@ async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) {
         .arg(dir_patch_build.as_path())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to spawn");
-    let status_code = child.wait().await.unwrap();
+        .spawn()?;
+
+    let status_code = child.wait().await?;
 
     if !status_code.success() {
-        panic!("TODO: handle case when rm fails");
+        return Err(anyhow!(
+            "rm exited with non-zero exit status: {}",
+            status_code
+        ));
     }
+
+    Ok(())
 }
 
 fn get_dir_patch_build(patch_id: &str, env_config: &EnvConfig) -> PathBuf {

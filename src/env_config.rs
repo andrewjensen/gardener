@@ -4,6 +4,7 @@ use std::path::PathBuf;
 pub struct EnvConfig {
     pub dir_workspace: PathBuf,
     pub dir_pd2dsy: PathBuf,
+    pub display_compilation_output: bool,
 }
 
 pub fn get_env_config() -> EnvConfig {
@@ -16,5 +17,6 @@ pub fn get_env_config() -> EnvConfig {
     EnvConfig {
         dir_workspace: PathBuf::from(env_var_dir_workspace),
         dir_pd2dsy: PathBuf::from(env_var_dir_pd2dsy),
+        display_compilation_output: true,
     }
 }
