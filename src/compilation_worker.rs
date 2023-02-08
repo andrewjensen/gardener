@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use log::{debug, error, info};
+use log::{debug, error, info, trace, warn};
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -42,7 +42,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
             let patches_lock = patches_store.patches.try_lock();
 
             if let (Ok(mut queue), Ok(patches)) = (queue_lock, patches_lock) {
-                debug!("Found {} items in the queue", queue.len());
+                trace!("Found {} items in the queue", queue.len());
 
                 if let Some(patch_id) = queue.pop_front() {
                     if let Some(patch_meta) = patches.get(&patch_id) {
@@ -55,34 +55,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
         };
 
         if let Some(patch) = patch_to_compile {
-            info!("Compiling patch {}...", patch.id);
-
-            // TODO: set the patch's status as "compiling"
-
-            // TODO: this loop is too big and unruly, clean it up
-
-            match compile_patch(&patch.id, &patch.board).await {
-                Ok(()) => {}
-                Err(_) => {
-                    panic!("TODO: handle cases where compilation fails");
-                }
-            };
-
-            info!("Finished compiling patch {}", patch.id);
-
-            if let Ok(mut patches) = patches_store.patches.try_lock() {
-                patches.insert(
-                    patch.id.clone(),
-                    PatchMeta {
-                        status: PatchStatus::Compiled,
-                        ..patch
-                    },
-                );
-            } else {
-                error!("TODO: could not update patches after compilation, handle gracefully");
-
-                panic!();
-            }
+            process_patch(patch, Arc::clone(&patches_store)).await;
         }
 
         tokio::select! {
@@ -95,6 +68,51 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
                 break;
             }
         };
+    }
+}
+
+async fn process_patch(patch: PatchMeta, patches_store: Arc<PatchesStore>) {
+    let patch_id = patch.id.clone();
+
+    info!("Compiling patch {}...", patch_id);
+
+    let compiled_patch = PatchMeta {
+        status: PatchStatus::Compiling,
+        ..patch.clone()
+    };
+    update_patches_store_item(&patch_id, compiled_patch, Arc::clone(&patches_store));
+
+    let compilation_result = compile_patch(&patch_id, &patch.board).await;
+
+    match compilation_result {
+        Ok(()) => {
+            info!("Finished compiling patch {}", patch_id);
+
+            let compiled_patch = PatchMeta {
+                status: PatchStatus::Compiled,
+                ..patch
+            };
+            update_patches_store_item(&patch_id, compiled_patch, Arc::clone(&patches_store));
+        }
+        Err(_) => {
+            warn!("Failed to compile patch {}", patch_id);
+
+            let failed_patch = PatchMeta {
+                status: PatchStatus::Failed,
+                ..patch
+            };
+            update_patches_store_item(&patch_id, failed_patch, Arc::clone(&patches_store));
+        }
+    };
+}
+
+fn update_patches_store_item(patch_id: &str, patch: PatchMeta, patches_store: Arc<PatchesStore>) {
+    if let Ok(mut patches) = patches_store.patches.try_lock() {
+        patches.insert(patch_id.to_string(), patch);
+    } else {
+        error!("TODO: could not update PatchesStore, handle gracefully");
+
+        panic!();
     }
 }
 
