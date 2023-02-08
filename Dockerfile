@@ -13,10 +13,11 @@ COPY --from=cargo /code/target/release/pd2dsy4web /code
 COPY --from=cargo /code/public /code/public
 COPY --from=cargo /code/workspace /code/workspace
 RUN apt update && apt install -y \
+  build-essential \
   git \
-  python3-venv \
-  build-essential
-# python3-pip \
+  wget \
+  python3-pip \
+  python3-venv
 
 RUN mkdir lib
 
@@ -34,5 +35,7 @@ RUN cd lib/pd2dsy \
 # https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
 # "x86_64 Linux hosted cross toolchains" > "AArch32 bare-metal target (arm-none-eabi)"
 RUN cd /code/lib \
-  && wget https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz
-RUN export PATH=$PATH:/code/lib/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi/bin
+  && wget https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz \
+  && tar -xf arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz \
+  && rm arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi.tar.xz
+ENV PATH="${PATH}:/code/lib/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi/bin"
