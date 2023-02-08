@@ -6,12 +6,20 @@ pub struct ParseBoardError;
 
 #[derive(Serialize, Debug, Clone)]
 pub enum Board {
-    Seed,
+    #[serde(rename = "pod")]
     Pod,
-    // TODO: add other boards
 
-    // From pd2dsy help: The supported boards are:
-    // pod, patch, patch_init, field, petal
+    #[serde(rename = "patch")]
+    Patch,
+
+    #[serde(rename = "patch_init")]
+    PatchInit,
+
+    #[serde(rename = "field")]
+    Field,
+
+    #[serde(rename = "petal")]
+    Petal,
 }
 
 impl FromStr for Board {
@@ -19,8 +27,11 @@ impl FromStr for Board {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "seed" => Ok(Board::Seed),
             "pod" => Ok(Board::Pod),
+            "patch" => Ok(Board::Patch),
+            "patch_init" => Ok(Board::PatchInit),
+            "field" => Ok(Board::Field),
+            "petal" => Ok(Board::Petal),
             _ => Err(ParseBoardError),
         }
     }
