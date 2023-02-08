@@ -36,3 +36,16 @@ impl FromStr for Board {
         }
     }
 }
+
+// TODO: there's got to be a more clever way to convert back and forth, maybe with `serde`
+impl Board {
+    pub fn to_str(&self) -> String {
+        match self {
+            Board::Pod => "pod".to_string(),
+            Board::Patch => "patch".to_string(),
+            Board::PatchInit => "patch_init".to_string(),
+            Board::Field => "field".to_string(),
+            Board::Petal => "petal".to_string(),
+        }
+    }
+}

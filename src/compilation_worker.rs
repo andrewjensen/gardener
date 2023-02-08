@@ -9,6 +9,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
+use crate::boards::Board;
 use crate::env_config::{get_env_config, EnvConfig};
 use crate::patches::{PatchMeta, PatchStatus, PatchesStore};
 
@@ -57,7 +58,7 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
 
             // TODO: set the patch's status as "compiling"
 
-            compile_patch(&patch.id).await;
+            compile_patch(&patch.id, &patch.board).await;
 
             info!("Finished compiling patch {}", patch.id);
 
@@ -89,10 +90,10 @@ async fn spawn_worker(patches_store: Arc<PatchesStore>, stop_signal: Cancellatio
     }
 }
 
-async fn compile_patch(patch_id: &str) {
+async fn compile_patch(patch_id: &str, board: &Board) {
     let env_config = get_env_config();
 
-    generate_cpp_code(patch_id, &env_config).await;
+    generate_cpp_code(patch_id, board, &env_config).await;
 
     compile_binary(patch_id, &env_config).await;
 
@@ -101,7 +102,7 @@ async fn compile_patch(patch_id: &str) {
     remove_build_dir(patch_id, &env_config).await;
 }
 
-async fn generate_cpp_code(patch_id: &str, env_config: &EnvConfig) {
+async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig) {
     debug!("Generating C++ code...");
 
     let mut filename_pd2dsy_script = env_config.dir_pd2dsy.clone();
@@ -114,7 +115,7 @@ async fn generate_cpp_code(patch_id: &str, env_config: &EnvConfig) {
     let mut child = Command::new("python3")
         .arg(filename_pd2dsy_script.as_path())
         .arg("--board")
-        .arg("pod") // TODO: make dynamic
+        .arg(board.to_str())
         .arg("--directory")
         .arg("builds")
         .arg("--libdaisy-depth")
