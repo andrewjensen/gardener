@@ -102,6 +102,8 @@ async fn compile_patch(patch_id: &str) {
 }
 
 async fn generate_cpp_code(patch_id: &str, env_config: &EnvConfig) {
+    debug!("Generating C++ code...");
+
     let mut filename_pd2dsy_script = env_config.dir_pd2dsy.clone();
     filename_pd2dsy_script.push("pd2dsy.py");
 
@@ -132,6 +134,8 @@ async fn generate_cpp_code(patch_id: &str, env_config: &EnvConfig) {
 }
 
 async fn compile_binary(patch_id: &str, env_config: &EnvConfig) {
+    debug!("Compiling binary...");
+
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
 
     let mut child = Command::new("make")
@@ -148,6 +152,8 @@ async fn compile_binary(patch_id: &str, env_config: &EnvConfig) {
 }
 
 async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) {
+    debug!("Moving binary into workspace...");
+
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
 
     let mut filename_compiled_binary = dir_patch_build.to_path_buf();
@@ -173,6 +179,8 @@ async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) {
 }
 
 async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) {
+    debug!("Cleaning up...");
+
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
 
     let mut child = Command::new("rm")
