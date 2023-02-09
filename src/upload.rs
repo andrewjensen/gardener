@@ -1,5 +1,6 @@
 use actix_multipart::{Field, Multipart};
 use actix_web::web;
+use anyhow::{anyhow, Result};
 use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
 use log::debug;
@@ -25,9 +26,7 @@ enum UploadFormItem {
     Unrecognized,
 }
 
-pub async fn process_patch_upload(mut payload: Multipart) -> Option<PatchMeta> {
-    // TODO: this should return a Result instead
-
+pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
     let mut board_in: Option<Board> = None;
     let mut filename_in: Option<String> = None;
     let mut file_contents_in: Option<String> = None;
@@ -56,13 +55,23 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Option<PatchMeta> {
                 file_contents_in = Some(found_contents);
             }
             UploadFormItem::Unrecognized => {
-                unreachable!();
+                // Ignore missing files or unexpected items
             }
         }
     }
 
-    // TODO: handle cases where parts are missing
-    let patch_id = Uuid::new_v4();
+    if board_in.is_none() {
+        return Err(anyhow!("Missing board option"));
+    }
+
+    if file_contents_in.is_none() {
+        return Err(anyhow!("Missing patch file"));
+    }
+
+    if filename_in.is_none() {
+        return Err(anyhow!("Missing filename"));
+    }
+
     let board = board_in.unwrap();
     let filename = filename_in.unwrap();
     let file_contents = file_contents_in.unwrap();
@@ -70,6 +79,8 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Option<PatchMeta> {
     debug!("Board result: {:?}", board);
     debug!("Filename: {:?}", filename);
     debug!("File contents: {:?}", file_contents);
+
+    let patch_id = Uuid::new_v4();
 
     let patch_meta = PatchMeta {
         id: patch_id.to_string(),
@@ -80,21 +91,26 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Option<PatchMeta> {
     };
     debug!("Created patch meta: {:?}", &patch_meta);
 
-    Some(patch_meta)
+    write_patch_to_disk(&patch_meta.id, &patch_meta.file_contents).await?;
+
+    Ok(patch_meta)
 }
 
-pub async fn write_patch_to_disk(patch_id: &str, file_contents: &str) {
-    // TODO: handle fs errors!
-
+async fn write_patch_to_disk(patch_id: &str, file_contents: &str) -> Result<()> {
     let patch_id = patch_id.to_string();
     let file_contents = file_contents.to_string();
 
-    web::block(move || {
+    let result = web::block(move || {
         let mut file = fs::File::create(format!("workspace/uploads/{patch_id}.pd")).unwrap();
-        file.write_all(file_contents.as_bytes()).unwrap();
+
+        file.write_all(file_contents.as_bytes())
     })
-    .await
-    .unwrap();
+    .await?;
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(_) => Err(anyhow!("Failed to save patch to disk")),
+    }
 }
 
 fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> UploadFormItem {
@@ -113,11 +129,14 @@ fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> Uplo
         {
             let filename_captures = REGEX_FILENAME.captures(content_disposition).unwrap();
             let filename = filename_captures.get(1).unwrap().as_str();
-            debug!("Parsed a file upload: {}", filename);
-            return UploadFormItem::FileUpload {
-                filename: filename.to_string(),
-                file_contents: chunk_contents.to_string(),
-            };
+
+            if !filename.is_empty() && !chunk_contents.is_empty() {
+                debug!("Parsed a file upload: {}", filename);
+                return UploadFormItem::FileUpload {
+                    filename: filename.to_string(),
+                    file_contents: chunk_contents.to_string(),
+                };
+            }
         }
     }
 

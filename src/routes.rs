@@ -3,13 +3,13 @@ use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use askama::Template;
-use log::{error, info, warn};
+use log::{info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::env_config::get_env_config;
 use crate::patches::{PatchMeta, PatchesStore};
-use crate::upload::{process_patch_upload, write_patch_to_disk};
+use crate::upload::process_patch_upload;
 
 #[derive(Template)]
 #[template(path = "home.html")]
@@ -53,9 +53,7 @@ pub async fn upload_route(
     info!("Starting the upload endpoint...");
 
     match process_patch_upload(payload).await {
-        Some(patch_meta) => {
-            write_patch_to_disk(&patch_meta.id, &patch_meta.file_contents).await;
-
+        Ok(patch_meta) => {
             let patch_id = patch_meta.id.clone();
 
             let mut patches = patches_store.patches.lock().unwrap();
@@ -72,10 +70,15 @@ pub async fn upload_route(
 
             Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
         }
-        None => {
-            error!("TODO: Something went wrong during the upload, handle gracefully");
+        Err(reason) => {
+            warn!("Error uploading patch: {reason}");
 
-            panic!();
+            let res_body = format!("Error uploading your patch: {reason}");
+
+            // TODO: return an actual HTML page
+            Ok(HttpResponse::BadRequest()
+                .content_type("text/html")
+                .body(res_body))
         }
     }
 }
