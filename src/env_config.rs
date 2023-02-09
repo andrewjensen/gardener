@@ -14,12 +14,18 @@ pub fn get_env_config() -> EnvConfig {
     let env_var_dir_workspace =
         env::var("DIR_WORKSPACE").expect("Missing required env var: DIR_WORKSPACE");
     let env_var_dir_pd2dsy = env::var("DIR_PD2DSY").expect("Missing required env var: DIR_PD2DSY");
+
+    let display_compilation_output = match env::var("DISPLAY_COMPILATION_OUTPUT") {
+        Ok(value) => value == "true",
+        Err(_) => false,
+    };
+
     let admin_token = env::var("ADMIN_TOKEN").expect("Missing required env var: ADMIN_TOKEN");
 
     EnvConfig {
         dir_workspace: PathBuf::from(env_var_dir_workspace),
         dir_pd2dsy: PathBuf::from(env_var_dir_pd2dsy),
-        display_compilation_output: false,
+        display_compilation_output,
         admin_token,
     }
 }
