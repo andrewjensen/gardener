@@ -80,7 +80,7 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
     trace!("Filename: {:?}", filename);
     trace!("File contents: {:?}", file_contents);
 
-    if filename.ends_with(".pd") {
+    if !filename.ends_with(".pd") {
         return Err(anyhow!("File does not appear to be a Pd patch"));
     }
 
