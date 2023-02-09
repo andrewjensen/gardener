@@ -14,7 +14,7 @@
 
     <h1><a href="/">gardener</a></h1>
 
-    <p>Hello, world!</p>
+    <p class="subtitle">A web-based UI to convert Pure Data patches for <a href="https://www.electro-smith.com/daisy" target="_blank">Daisy</a> hardware, powered by <a href="https://github.com/electro-smith/pd2dsy" target="_blank">pd2dsy</a>.</p>
 
     <form action="/upload" method="post" enctype="multipart/form-data">
       <div class="form-element">
@@ -33,9 +33,9 @@
         <input type="file" name="pd_patch" />
       </div>
 
-      <p>
-        <input type="submit" value="Build" />
-      </p>
+      <section id="submission">
+        <input type="submit" value="Upload and compile" />
+      </section>
     </form>
 
   </main>
