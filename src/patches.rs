@@ -1,6 +1,7 @@
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::{HttpRequest, HttpResponse, Responder};
+use anyhow::{anyhow, Result};
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
@@ -41,4 +42,12 @@ pub enum PatchStatus {
     Compiling,
     Compiled,
     Failed,
+}
+
+pub fn validate_patch_file_contents(file_contents: &str) -> Result<()> {
+    if file_contents.contains("#N canvas") {
+        Ok(())
+    } else {
+        Err(anyhow!("File does not appear to be a Pd patch"))
+    }
 }

@@ -3,7 +3,7 @@ use actix_web::web;
 use anyhow::{anyhow, Result};
 use futures_util::StreamExt as _;
 use lazy_static::lazy_static;
-use log::debug;
+use log::{debug, trace};
 use regex::Regex;
 use std::fs;
 use std::io::prelude::*;
@@ -11,7 +11,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::boards::Board;
-use crate::patches::{PatchMeta, PatchStatus};
+use crate::patches::{validate_patch_file_contents, PatchMeta, PatchStatus};
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
@@ -32,14 +32,14 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
     let mut file_contents_in: Option<String> = None;
 
     while let Some(item) = payload.next().await {
-        let mut field = item.unwrap();
+        let mut field = item?;
         debug!("Item is a field: {:?}", field);
 
         let mut field_contents: String = "".to_string();
 
         while let Some(chunk) = field.next().await {
-            let chunk_bytes = chunk.unwrap();
-            let chunk_contents = std::str::from_utf8(&chunk_bytes).unwrap();
+            let chunk_bytes = chunk?;
+            let chunk_contents = std::str::from_utf8(&chunk_bytes)?;
             debug!("chunk contents:\n{}", chunk_contents);
 
             field_contents.push_str(chunk_contents);
@@ -76,9 +76,15 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
     let filename = filename_in.unwrap();
     let file_contents = file_contents_in.unwrap();
 
-    debug!("Board result: {:?}", board);
-    debug!("Filename: {:?}", filename);
-    debug!("File contents: {:?}", file_contents);
+    trace!("Board result: {:?}", board);
+    trace!("Filename: {:?}", filename);
+    trace!("File contents: {:?}", file_contents);
+
+    if filename.ends_with(".pd") {
+        return Err(anyhow!("File does not appear to be a Pd patch"));
+    }
+
+    validate_patch_file_contents(&file_contents)?;
 
     let patch_id = Uuid::new_v4();
 
