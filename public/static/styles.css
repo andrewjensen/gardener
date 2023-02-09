@@ -13,10 +13,14 @@ body {
   width: 100%;
   height: 100%;
   margin: 0;
-  background-color: #009900;
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  background-color: #77dd55;
+  /* Original color: #7ddb5b */
+
+  color: #000000;
 }
 
 main {
@@ -25,16 +29,22 @@ main {
   background-color: #ffffff;
   margin: 0 auto;
   padding: 20px 20px;
-  border: 20px solid #333333;
+  border: 20px solid #555555;
 }
 
 h1, h2, h3, h4, h5, h6 {
+  line-height: 1.0;
   margin: 0 0 10px;
 }
 
 h1 {
   font-size: 48px;
   letter-spacing: -2px;
+}
+
+h2 {
+  font-size: 24px;
+  letter-spacing: -0.5px;
 }
 
 a:link, a:visited {
@@ -53,15 +63,21 @@ a:hover {
   margin: 0 0 20px;
   padding-bottom: 20px;
   font-size: 18px;
-  border-bottom: 2px solid #333333;
+  border-bottom: 2px solid #555555;
 }
 
 .form-element {
-  margin-bottom: 20px;
+  margin: 20px 0;
+}
+
+.form-element h3 {
+  margin-bottom: 5px;
+  font-size: 18px;
+  font-weight: normal;
 }
 
 #submission {
-  border-top: 2px solid #333333;
+  border-top: 2px solid #555555;
   padding-top: 20px;
 }
 
@@ -74,9 +90,6 @@ a:hover {
 
   color: #333333;
   background-color: #eeeeee;
-
-  /* color: #ffffff;
-  background-color: #0000aa; */
 }
 
 #submission input:hover, #submission input:focus {
@@ -85,6 +98,32 @@ a:hover {
 
 /* Patch page */
 
-#download-area {
-  display: none;
+#download {
+  margin-bottom: 20px;
+}
+
+#download a:link, #download a:visited {
+  font-size: 24px;
+  padding: 5px 10px;
+  border: 1px solid #333333;
+  border-radius: 0;
+  cursor: pointer;
+
+  color: #333333;
+  background-color: #eeeeee;
+}
+
+#download a:hover {
+  background-color: #dddddd;
+  text-decoration: none;
+}
+
+.download-disabled a {
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+#tips {
+  padding-top: 20px;
+  border-top: 2px solid #555555;
 }

@@ -7,6 +7,9 @@ main();
 
 async function main() {
   const patchId = window.PATCH_ID;
+
+  console.log('Patch ID:', patchId);
+
   console.log('Time to poll patch state!', patchId);
 
   const maxAttempts = POLLING_ENABLED ? MAX_ATTEMPTS : 1;
@@ -16,10 +19,10 @@ async function main() {
     const patch = await fetchPatchMeta(patchId);
     console.log('current patch status:', patch.status);
 
-    document.querySelector('#status').innerHTML = patch.status;
+    document.getElementById('status').innerHTML = getStatusMessage(patch.status);
 
     if (patch.status === 'Compiled') {
-      document.getElementById('download-area').style.display = 'block';
+      document.getElementById('download').classList.remove('download-disabled');
       completed = true;
 
       break;
@@ -44,4 +47,15 @@ async function pause(ms) {
   return new Promise(resolve => {
     setTimeout(resolve, ms);
   });
+}
+
+function getStatusMessage(status) {
+  const messages = {
+    'Uploaded': 'waiting to compile...',
+    'Compiling': 'compiling...',
+    'Compiled': 'compiled successfully',
+    'Failed': 'failed to compile!',
+  };
+
+  return messages[status];
 }
