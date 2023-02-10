@@ -27,7 +27,7 @@ main {
   width: 100%;
   max-width: 500px;
   background-color: #ffffff;
-  margin: 0 auto;
+  margin: 60px auto 0;
   padding: 20px 20px;
   border: 20px solid #555555;
 }
@@ -55,6 +55,20 @@ a:link, a:visited {
 a:hover {
   color: #0000cc;
   text-decoration: underline;
+}
+
+footer {
+  padding: 20px 0;
+  text-align: center;
+  font-size: 16px;
+}
+
+footer a:link, footer a:visited {
+  color: #333333;
+}
+
+footer a:hover {
+  color: #666666;
 }
 
 /* Home page */

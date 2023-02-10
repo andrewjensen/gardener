@@ -16,6 +16,10 @@ use crate::upload::process_patch_upload;
 struct HomeTemplate;
 
 #[derive(Template)]
+#[template(path = "about.html")]
+struct AboutTemplate;
+
+#[derive(Template)]
 #[template(path = "upload_success.html")]
 struct UploadSuccessTemplate<'a> {
     patch_id: &'a str,
@@ -41,6 +45,13 @@ impl Responder for PatchListResponse {
 #[get("/")]
 pub async fn index_route() -> Result<HttpResponse> {
     let res_body = HomeTemplate.render().unwrap();
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
+}
+
+#[get("/about")]
+pub async fn about_route() -> Result<HttpResponse> {
+    let res_body = AboutTemplate.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
 }
