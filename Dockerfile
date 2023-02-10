@@ -1,17 +1,22 @@
+# temporary image to compile Rust
 FROM rust:1.67-slim-buster AS cargo
-
-# compile Rust app
 WORKDIR /code
 COPY . .
 RUN cargo build --release
 
+# start a new image with only runtime dependencies
 FROM debian:stable AS release
 
-# copy compiled Rust project into new blank image
+# copy compiled Rust project into the new image
 WORKDIR /code
 COPY --from=cargo /code/target/release/gardener /code
-COPY --from=cargo /code/public /code/public
+
+# copy other assets
+COPY --from=cargo /code/bin       /code/bin
+COPY --from=cargo /code/public    /code/public
 COPY --from=cargo /code/workspace /code/workspace
+
+# add system dependencies
 RUN apt update && apt install -y \
   build-essential \
   git \
@@ -29,6 +34,10 @@ RUN git clone \
 RUN cd lib/pd2dsy \
   && pip3 install -r requirements.txt \
   && ./install.sh
+
+# Adding virtualenv binaries to the system path manually, see:
+# https://pythonspeed.com/articles/activate-virtualenv-dockerfile/
+ENV PATH="/code/lib/pd2dsy/pd_env/bin/:${PATH}"
 
 # add lib: arm toolchain
 # Found on this page:
