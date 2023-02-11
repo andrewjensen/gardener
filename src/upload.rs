@@ -11,7 +11,7 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::boards::Board;
-use crate::patches::{validate_patch_file_contents, PatchMeta, PatchStatus};
+use crate::patches::{validate_patch_file_contents, DateTime, PatchMeta, PatchStatus};
 
 lazy_static! {
     static ref REGEX_FILENAME: Regex = Regex::new(r#"filename="(.*?)""#).unwrap();
@@ -94,6 +94,9 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
         board,
         filename,
         file_contents,
+        time_upload: DateTime::now(),
+        time_compile_start: None,
+        time_compile_end: None,
     };
     debug!("Created patch meta: {:?}", &patch_meta);
 

@@ -12,7 +12,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::boards::Board;
 use crate::env_config::{get_env_config, EnvConfig};
-use crate::patches::{PatchMeta, PatchStatus, PatchesStore};
+use crate::patches::{DateTime, PatchMeta, PatchStatus, PatchesStore};
 
 pub fn init_compilation_worker() -> (Arc<PatchesStore>, JoinHandle<()>, CancellationToken) {
     let patches_store = PatchesStore {
@@ -76,11 +76,12 @@ async fn process_patch(patch: PatchMeta, patches_store: Arc<PatchesStore>) {
 
     info!("Compiling patch {}...", patch_id);
 
-    let compiled_patch = PatchMeta {
+    let compiling_patch = PatchMeta {
         status: PatchStatus::Compiling,
+        time_compile_start: Some(DateTime::now()),
         ..patch.clone()
     };
-    update_patches_store_item(&patch_id, compiled_patch, Arc::clone(&patches_store));
+    update_patches_store_item(&patch_id, &compiling_patch, Arc::clone(&patches_store));
 
     let compilation_result = compile_patch(&patch_id, &patch.board).await;
 
@@ -90,25 +91,26 @@ async fn process_patch(patch: PatchMeta, patches_store: Arc<PatchesStore>) {
 
             let compiled_patch = PatchMeta {
                 status: PatchStatus::Compiled,
-                ..patch
+                time_compile_end: Some(DateTime::now()),
+                ..compiling_patch
             };
-            update_patches_store_item(&patch_id, compiled_patch, Arc::clone(&patches_store));
+            update_patches_store_item(&patch_id, &compiled_patch, Arc::clone(&patches_store));
         }
         Err(_) => {
             warn!("Failed to compile patch {}", patch_id);
 
             let failed_patch = PatchMeta {
                 status: PatchStatus::Failed,
-                ..patch
+                ..compiling_patch
             };
-            update_patches_store_item(&patch_id, failed_patch, Arc::clone(&patches_store));
+            update_patches_store_item(&patch_id, &failed_patch, Arc::clone(&patches_store));
         }
     };
 }
 
-fn update_patches_store_item(patch_id: &str, patch: PatchMeta, patches_store: Arc<PatchesStore>) {
+fn update_patches_store_item(patch_id: &str, patch: &PatchMeta, patches_store: Arc<PatchesStore>) {
     if let Ok(mut patches) = patches_store.patches.try_lock() {
-        patches.insert(patch_id.to_string(), patch);
+        patches.insert(patch_id.to_string(), patch.clone());
     } else {
         error!("TODO: could not update PatchesStore, handle gracefully");
 

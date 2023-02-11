@@ -2,7 +2,7 @@ use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use anyhow::{anyhow, Result};
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
@@ -22,6 +22,9 @@ pub struct PatchMeta {
     pub board: Board,
     pub filename: String,
     pub file_contents: String,
+    pub time_upload: DateTime,
+    pub time_compile_start: Option<DateTime>,
+    pub time_compile_end: Option<DateTime>,
 }
 
 impl Responder for PatchMeta {
@@ -42,6 +45,28 @@ pub enum PatchStatus {
     Compiling,
     Compiled,
     Failed,
+}
+
+#[derive(Debug, Clone)]
+pub struct DateTime {
+    inner: chrono::DateTime<chrono::offset::Utc>,
+}
+
+impl Serialize for DateTime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&format!("{:?}", self.inner))
+    }
+}
+
+impl DateTime {
+    pub fn now() -> Self {
+        DateTime {
+            inner: chrono::offset::Utc::now(),
+        }
+    }
 }
 
 pub fn validate_patch_file_contents(file_contents: &str) -> Result<()> {
