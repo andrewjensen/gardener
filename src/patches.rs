@@ -21,7 +21,6 @@ pub struct PatchMeta {
     pub status: PatchStatus,
     pub board: Board,
     pub filename: String,
-    pub file_contents: String,
     pub time_upload: DateTime,
     pub time_compile_start: Option<DateTime>,
     pub time_compile_end: Option<DateTime>,

@@ -93,14 +93,13 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
         status: PatchStatus::Uploaded,
         board,
         filename,
-        file_contents,
         time_upload: DateTime::now(),
         time_compile_start: None,
         time_compile_end: None,
     };
     debug!("Created patch meta: {:?}", &patch_meta);
 
-    write_patch_to_disk(&patch_meta.id, &patch_meta.file_contents).await?;
+    write_patch_to_disk(&patch_meta.id, &file_contents).await?;
 
     Ok(patch_meta)
 }
