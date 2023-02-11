@@ -3,6 +3,7 @@ use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use askama::Template;
+use lazy_static::lazy_static;
 use log::{info, warn};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -17,7 +18,9 @@ struct HomeTemplate;
 
 #[derive(Template)]
 #[template(path = "about.html")]
-struct AboutTemplate;
+struct AboutTemplate<'a> {
+    about_content: &'a str,
+}
 
 #[derive(Template)]
 #[template(path = "upload_success.html")]
@@ -42,6 +45,15 @@ impl Responder for PatchListResponse {
     }
 }
 
+lazy_static! {
+    static ref ABOUT_CONTENT: String = {
+        let md_contents = include_str!("../templates/about_content.md");
+        let html: String = markdown::to_html(md_contents);
+
+        html
+    };
+}
+
 #[get("/")]
 pub async fn index_route() -> Result<HttpResponse> {
     let res_body = HomeTemplate.render().unwrap();
@@ -51,7 +63,11 @@ pub async fn index_route() -> Result<HttpResponse> {
 
 #[get("/about")]
 pub async fn about_route() -> Result<HttpResponse> {
-    let res_body = AboutTemplate.render().unwrap();
+    let res_body = AboutTemplate {
+        about_content: &ABOUT_CONTENT,
+    }
+    .render()
+    .unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
 }
