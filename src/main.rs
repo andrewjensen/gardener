@@ -32,7 +32,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::from(Arc::clone(&patches_store)))
             .wrap(Logger::default())
-            .service(Files::new("/static", "./public/static"))
+            .service(Files::new("/static", "./public/static").use_etag(true))
             .service(Files::new("/downloads", "./workspace/downloads"))
             .service(index_route)
             .service(about_route)
