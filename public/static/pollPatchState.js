@@ -1,5 +1,6 @@
 const MAX_ATTEMPTS = 60;
 const ATTEMPT_INTERVAL_MS = 1000;
+const FINISHED_STATUSES = ['Compiled', 'Failed'];
 
 const POLLING_ENABLED = true;
 
@@ -21,8 +22,11 @@ async function main() {
 
     document.getElementById('status').innerHTML = getStatusMessage(patch.status);
 
-    if (patch.status === 'Compiled') {
-      document.getElementById('download').classList.remove('download-disabled');
+    if (FINISHED_STATUSES.includes(patch.status)) {
+      if (patch.status === 'Compiled') {
+        document.getElementById('download').classList.remove('download-disabled');
+      }
+
       completed = true;
 
       break;
