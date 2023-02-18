@@ -1,4 +1,6 @@
+use lazy_static::lazy_static;
 use log::{debug, error, info, trace, warn};
+use regex::Regex;
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -14,6 +16,10 @@ use tokio_util::sync::CancellationToken;
 use crate::boards::Board;
 use crate::env_config::{get_env_config, EnvConfig};
 use crate::patches::{DateTime, PatchMeta, PatchStatus, PatchesStore};
+
+lazy_static! {
+    static ref REGEX_ESCAPE_SEQUENCE: Regex = Regex::new(r#"\x1b\[([0-9]+;)?[0-9]+m"#).unwrap();
+}
 
 #[derive(Error, Debug)]
 pub enum CompilationError {
@@ -121,7 +127,7 @@ async fn process_patch(patch: PatchMeta, patches_store: Arc<PatchesStore>) {
             let failed_status = match &err {
                 CompilationError::Pd2dsyFailed { stdout } => PatchStatus::Failed {
                     summary: err.to_string(),
-                    details: Some(stdout.clone()),
+                    details: Some(remove_escape_sequences(stdout)),
                 },
                 _ => PatchStatus::Failed {
                     summary: err.to_string(),
@@ -299,4 +305,10 @@ fn get_dir_patch_build(patch_id: &str, env_config: &EnvConfig) -> PathBuf {
     dir_patch_build.push(patch_id);
 
     dir_patch_build
+}
+
+fn remove_escape_sequences(terminal_output: &str) -> String {
+    REGEX_ESCAPE_SEQUENCE
+        .replace_all(terminal_output, "")
+        .to_string()
 }
