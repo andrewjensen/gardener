@@ -19,11 +19,11 @@ async function main() {
   for (let attempts = 0; attempts < maxAttempts; attempts++) {
     const patch = await fetchPatchMeta(patchId);
     console.log('current patch status:', patch.status);
+    const statusName = getStatusName(patch.status);
+    document.getElementById('status').innerHTML = getStatusMessage(statusName);
 
-    document.getElementById('status').innerHTML = getStatusMessage(patch.status);
-
-    if (FINISHED_STATUSES.includes(patch.status)) {
-      if (patch.status === 'Compiled') {
+    if (FINISHED_STATUSES.includes(statusName)) {
+      if (statusName === 'Compiled') {
         document.getElementById('download').classList.remove('download-disabled');
       }
 
@@ -53,7 +53,16 @@ async function pause(ms) {
   });
 }
 
-function getStatusMessage(status) {
+function getStatusName(status) {
+  let statusName = status;
+  if (typeof status === 'object' && status['Failed']) {
+    statusName = 'Failed';
+  }
+
+  return statusName;
+}
+
+function getStatusMessage(statusName) {
   const messages = {
     'Uploaded': 'waiting to compile...',
     'Compiling': 'compiling...',
@@ -61,5 +70,5 @@ function getStatusMessage(status) {
     'Failed': 'failed to compile!',
   };
 
-  return messages[status];
+  return messages[statusName];
 }

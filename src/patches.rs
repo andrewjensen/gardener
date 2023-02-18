@@ -43,7 +43,10 @@ pub enum PatchStatus {
     Uploaded,
     Compiling,
     Compiled,
-    Failed,
+    Failed {
+        summary: String,
+        details: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Result};
 use log::{debug, error, info, trace, warn};
 use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::result::Result;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use thiserror::Error;
 use tokio::process::Command;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
@@ -13,6 +14,24 @@ use tokio_util::sync::CancellationToken;
 use crate::boards::Board;
 use crate::env_config::{get_env_config, EnvConfig};
 use crate::patches::{DateTime, PatchMeta, PatchStatus, PatchesStore};
+
+#[derive(Error, Debug)]
+pub enum CompilationError {
+    #[error("pd2dsy failed")]
+    Pd2dsyFailed { stdout: String },
+
+    #[error("make command failed")]
+    MakeFailed,
+
+    #[error("move command failed")]
+    MoveFailed,
+
+    #[error("rm command failed")]
+    RemoveFailed,
+
+    #[error("I/O error occurred")]
+    UnknownIOError(#[from] std::io::Error),
+}
 
 pub fn init_compilation_worker() -> (Arc<PatchesStore>, JoinHandle<()>, CancellationToken) {
     let patches_store = PatchesStore {
@@ -96,11 +115,22 @@ async fn process_patch(patch: PatchMeta, patches_store: Arc<PatchesStore>) {
             };
             update_patches_store_item(&patch_id, &compiled_patch, Arc::clone(&patches_store));
         }
-        Err(_) => {
+        Err(err) => {
             warn!("Failed to compile patch {}", patch_id);
 
+            let failed_status = match &err {
+                CompilationError::Pd2dsyFailed { stdout } => PatchStatus::Failed {
+                    summary: err.to_string(),
+                    details: Some(stdout.clone()),
+                },
+                _ => PatchStatus::Failed {
+                    summary: err.to_string(),
+                    details: None,
+                },
+            };
+
             let failed_patch = PatchMeta {
-                status: PatchStatus::Failed,
+                status: failed_status,
                 ..compiling_patch
             };
             update_patches_store_item(&patch_id, &failed_patch, Arc::clone(&patches_store));
@@ -118,7 +148,7 @@ fn update_patches_store_item(patch_id: &str, patch: &PatchMeta, patches_store: A
     }
 }
 
-async fn compile_patch(patch_id: &str, board: &Board) -> Result<()> {
+async fn compile_patch(patch_id: &str, board: &Board) -> Result<(), CompilationError> {
     let env_config = get_env_config();
 
     generate_cpp_code(patch_id, board, &env_config).await?;
@@ -132,7 +162,11 @@ async fn compile_patch(patch_id: &str, board: &Board) -> Result<()> {
     Ok(())
 }
 
-async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig) -> Result<()> {
+async fn generate_cpp_code(
+    patch_id: &str,
+    board: &Board,
+    env_config: &EnvConfig,
+) -> Result<(), CompilationError> {
     debug!("Generating C++ code...");
 
     let mut filename_pd2dsy_script = env_config.dir_pd2dsy.clone();
@@ -153,27 +187,31 @@ async fn generate_cpp_code(patch_id: &str, board: &Board, env_config: &EnvConfig
         .arg("2")
         .arg("--no-build")
         .arg(filename_patch.as_path())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .current_dir(env_config.dir_pd2dsy.as_path());
 
-    if !env_config.display_compilation_output {
-        command.stdout(Stdio::null()).stderr(Stdio::null());
+    let child = command.spawn()?;
+
+    let output = child.wait_with_output().await?;
+
+    let status_code = output.status;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    if env_config.display_compilation_output {
+        debug!("Command output:\n{}", stdout);
     }
 
-    let mut child = command.spawn()?;
-
-    let status_code = child.wait().await?;
-
     if !status_code.success() {
-        return Err(anyhow!(
-            "pd2dsy script exited with non-zero exit status: {}",
-            status_code
-        ));
+        return Err(CompilationError::Pd2dsyFailed {
+            stdout: stdout.to_string(),
+        });
     }
 
     Ok(())
 }
 
-async fn compile_binary(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
+async fn compile_binary(patch_id: &str, env_config: &EnvConfig) -> Result<(), CompilationError> {
     debug!("Compiling binary...");
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
@@ -190,16 +228,16 @@ async fn compile_binary(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
     let status_code = child.wait().await?;
 
     if !status_code.success() {
-        return Err(anyhow!(
-            "make exited with non-zero exit status: {}",
-            status_code
-        ));
+        return Err(CompilationError::MakeFailed);
     }
 
     Ok(())
 }
 
-async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
+async fn move_binary_into_workspace(
+    patch_id: &str,
+    env_config: &EnvConfig,
+) -> Result<(), CompilationError> {
     debug!("Moving binary into workspace...");
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
@@ -226,16 +264,13 @@ async fn move_binary_into_workspace(patch_id: &str, env_config: &EnvConfig) -> R
     let status_code = child.wait().await?;
 
     if !status_code.success() {
-        return Err(anyhow!(
-            "mv exited with non-zero exit status: {}",
-            status_code
-        ));
+        return Err(CompilationError::MoveFailed);
     }
 
     Ok(())
 }
 
-async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) -> Result<()> {
+async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) -> Result<(), CompilationError> {
     debug!("Cleaning up...");
 
     let dir_patch_build = get_dir_patch_build(patch_id, env_config);
@@ -252,10 +287,7 @@ async fn remove_build_dir(patch_id: &str, env_config: &EnvConfig) -> Result<()> 
     let status_code = child.wait().await?;
 
     if !status_code.success() {
-        return Err(anyhow!(
-            "rm exited with non-zero exit status: {}",
-            status_code
-        ));
+        return Err(CompilationError::RemoveFailed);
     }
 
     Ok(())
