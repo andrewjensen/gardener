@@ -20,11 +20,15 @@ async function main() {
     const patch = await fetchPatchMeta(patchId);
     console.log('current patch status:', patch.status);
     const statusName = getStatusName(patch.status);
-    document.getElementById('status').innerHTML = getStatusMessage(statusName);
+
+    updateStatusMessage(statusName);
 
     if (FINISHED_STATUSES.includes(statusName)) {
+
       if (statusName === 'Compiled') {
-        document.getElementById('download').classList.remove('download-disabled');
+        handleCompiled();
+      } else if (statusName === 'Failed') {
+        handleFailed(patch.status);
       }
 
       completed = true;
@@ -38,6 +42,26 @@ async function main() {
   if (!completed) {
     alert(`Patch never finished compiling after ${maxAttempts} polling attempts!`);
   }
+}
+
+function updateStatusMessage(statusName) {
+  document.getElementById('status').innerHTML = getStatusMessage(statusName);
+}
+
+function handleCompiled() {
+  document.getElementById('download').classList.remove('download-disabled');
+}
+
+function handleFailed(status) {
+  const summaryText = status['Failed'].summary;
+  document.getElementById('error-summary').innerHTML = `Reason: ${summaryText}`;
+
+  if (!!status['Failed'].details) {
+    document.getElementById('error-details').innerHTML = status['Failed'].details;
+    document.getElementById('error-details').classList.remove('hidden');
+  }
+
+  document.getElementById('error-info').classList.remove('hidden');
 }
 
 async function fetchPatchMeta(patchId) {

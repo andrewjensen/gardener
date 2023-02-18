@@ -141,3 +141,19 @@ footer a:hover {
   padding-top: 20px;
   border-top: 2px solid #555555;
 }
+
+.hidden {
+  display: none;
+}
+
+#error-details {
+  padding: 10px;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+
+  background-color: #333333;
+  color: #eeeeee;
+  font-size: 12px;
+  line-height: 1.4;
+}
