@@ -16,7 +16,7 @@ use crate::compilation_worker::init_compilation_worker;
 use crate::env_config::get_env_config;
 use crate::routes::{
     about_route, get_patch_by_id_route, index_route, list_patches_route, liveness_probe_route,
-    readiness_probe_route, upload_route,
+    patch_page_route, readiness_probe_route, upload_route,
 };
 
 #[actix_web::main]
@@ -36,6 +36,7 @@ async fn main() -> std::io::Result<()> {
             .service(Files::new("/downloads", "./workspace/downloads"))
             .service(index_route)
             .service(about_route)
+            .service(patch_page_route)
             .service(upload_route)
             .service(list_patches_route)
             .service(get_patch_by_id_route)

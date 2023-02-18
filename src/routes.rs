@@ -72,6 +72,35 @@ pub async fn about_route() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
 }
 
+#[get("/patches/{patch_id}")]
+pub async fn patch_page_route(
+    path: web::Path<String>,
+    patches_store: web::Data<PatchesStore>,
+) -> Result<HttpResponse> {
+    let patch_id = path.into_inner();
+
+    let patches = patches_store.patches.lock().unwrap();
+
+    match patches.get(&patch_id) {
+        Some(_patch_meta) => {
+            // TODO: create a different template
+            let res_body = UploadSuccessTemplate {
+                patch_id: &patch_id,
+            }
+            .render()
+            .unwrap();
+
+            Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
+        }
+        None => {
+            // TOOD: actually use a template
+            Ok(HttpResponse::NotFound()
+                .content_type("text/html")
+                .body("Not found!"))
+        }
+    }
+}
+
 #[post("/upload")]
 pub async fn upload_route(
     payload: Multipart,
