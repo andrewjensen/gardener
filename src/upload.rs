@@ -19,7 +19,11 @@ lazy_static! {
 
 enum UploadFormItem {
     BoardOption(Board),
-    FileUpload {
+    BoardDefinitionUpload {
+        filename: String,
+        file_contents: String,
+    },
+    PatchFileUpload {
         filename: String,
         file_contents: String,
     },
@@ -28,8 +32,12 @@ enum UploadFormItem {
 
 pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
     let mut board_in: Option<Board> = None;
-    let mut filename_in: Option<String> = None;
-    let mut file_contents_in: Option<String> = None;
+
+    let mut board_def_filename_in: Option<String> = None;
+    let mut board_def_contents_in: Option<String> = None;
+
+    let mut patch_filename_in: Option<String> = None;
+    let mut patch_contents_in: Option<String> = None;
 
     while let Some(item) = payload.next().await {
         let mut field = item?;
@@ -47,12 +55,19 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
 
         match parse_upload_form_item(&field, &field_contents) {
             UploadFormItem::BoardOption(board_value) => board_in = Some(board_value),
-            UploadFormItem::FileUpload {
+            UploadFormItem::BoardDefinitionUpload {
                 filename: found_filename,
                 file_contents: found_contents,
             } => {
-                filename_in = Some(found_filename);
-                file_contents_in = Some(found_contents);
+                board_def_filename_in = Some(found_filename);
+                board_def_contents_in = Some(found_contents);
+            }
+            UploadFormItem::PatchFileUpload {
+                filename: found_filename,
+                file_contents: found_contents,
+            } => {
+                patch_filename_in = Some(found_filename);
+                patch_contents_in = Some(found_contents);
             }
             UploadFormItem::Unrecognized => {
                 // Ignore missing files or unexpected items
@@ -64,27 +79,38 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
         return Err(anyhow!("Missing board option"));
     }
 
-    if file_contents_in.is_none() {
+    if patch_contents_in.is_none() {
         return Err(anyhow!("Missing patch file"));
     }
 
-    if filename_in.is_none() {
+    if patch_filename_in.is_none() {
         return Err(anyhow!("Missing filename"));
     }
 
+    if let Some(Board::SeedCustomJson) = board_in {
+        if board_def_filename_in.is_none() {
+            return Err(anyhow!("Missing custom board definition filename"));
+        }
+
+        if board_def_contents_in.is_none() {
+            return Err(anyhow!("Missing custom board definition file"));
+        }
+    }
+
     let board = board_in.unwrap();
-    let filename = filename_in.unwrap();
-    let file_contents = file_contents_in.unwrap();
+    let filename = patch_filename_in.unwrap();
+    let patch_contents = patch_contents_in.unwrap();
 
     trace!("Board result: {:?}", board);
     trace!("Filename: {:?}", filename);
-    trace!("File contents: {:?}", file_contents);
+    trace!("File contents: {:?}", patch_contents);
+    trace!("Board definition: {:?}", board_def_contents_in);
 
     if !filename.ends_with(".pd") {
         return Err(anyhow!("File does not appear to be a Pd patch"));
     }
 
-    validate_patch_file_contents(&file_contents)?;
+    validate_patch_file_contents(&patch_contents)?;
 
     let patch_id = Uuid::new_v4();
 
@@ -99,7 +125,11 @@ pub async fn process_patch_upload(mut payload: Multipart) -> Result<PatchMeta> {
     };
     debug!("Created patch meta: {:?}", &patch_meta);
 
-    write_patch_to_disk(&patch_meta.id, &file_contents).await?;
+    write_patch_to_disk(&patch_meta.id, &patch_contents).await?;
+
+    if let Some(board_def_contents) = board_def_contents_in {
+        write_board_def_to_disk(&patch_meta.id, &board_def_contents).await?;
+    }
 
     Ok(patch_meta)
 }
@@ -121,6 +151,25 @@ async fn write_patch_to_disk(patch_id: &str, file_contents: &str) -> Result<()> 
     }
 }
 
+async fn write_board_def_to_disk(patch_id: &str, file_contents: &str) -> Result<()> {
+    let patch_id = patch_id.to_string();
+    let file_contents = file_contents.to_string();
+
+    let result = web::block(move || {
+        let mut file =
+            fs::File::create(format!("workspace/uploads/{patch_id}_board_def.json")).unwrap();
+
+        file.write_all(file_contents.as_bytes())
+    })
+    .await?;
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(_) => Err(anyhow!("Failed to save board definition to disk")),
+    }
+}
+
+// TODO: process board definitions
 fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> UploadFormItem {
     if let Some(content_disposition_header) = multipart_field.headers().get("content-disposition") {
         let content_disposition = content_disposition_header.to_str().unwrap();
@@ -140,7 +189,7 @@ fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> Uplo
 
             if !filename.is_empty() && !chunk_contents.is_empty() {
                 debug!("Parsed a file upload: {}", filename);
-                return UploadFormItem::FileUpload {
+                return UploadFormItem::PatchFileUpload {
                     filename: filename.to_string(),
                     file_contents: chunk_contents.to_string(),
                 };
