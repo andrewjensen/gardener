@@ -27,7 +27,13 @@
           <option value="patch_init">patch.Init()</option>
           <option value="field">Field</option>
           <option value="petal">Petal</option>
+          <option value="seed_custom_json">Seed with board definition</option>
         </select>
+      </div>
+
+      <div id="board-def-container" class="form-element hidden">
+        <h3>Board definition JSON file</h3>
+        <input type="file" name="board_def" />
       </div>
 
       <div class="form-element">
@@ -44,5 +50,6 @@
 
   <footer><a href="/about">about gardener</a></footer>
 
+  <script type="text/javascript" defer src="/static/home.js"></script>
 </body>
 </html>
