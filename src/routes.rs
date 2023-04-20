@@ -23,6 +23,10 @@ struct AboutTemplate<'a> {
 }
 
 #[derive(Template)]
+#[template(path = "board_editor.html")]
+struct BoardEditorTemplate;
+
+#[derive(Template)]
 #[template(path = "upload_success.html")]
 struct UploadSuccessTemplate<'a> {
     patch_id: &'a str,
@@ -68,6 +72,13 @@ pub async fn about_route() -> Result<HttpResponse> {
     }
     .render()
     .unwrap();
+
+    Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
+}
+
+#[get("/board-editor")]
+pub async fn board_editor_route() -> Result<HttpResponse> {
+    let res_body = BoardEditorTemplate.render().unwrap();
 
     Ok(HttpResponse::Ok().content_type("text/html").body(res_body))
 }
