@@ -6,7 +6,7 @@ pub struct ParseBoardError;
 
 #[derive(Serialize, Debug, Clone)]
 pub enum Board {
-    #[serde(rename = "seed_custom_json")]
+    #[serde(rename = "seed")]
     SeedCustomJson,
 
     #[serde(rename = "pod")]
@@ -30,7 +30,7 @@ impl FromStr for Board {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "seed_custom_json" => Ok(Board::SeedCustomJson),
+            "seed" => Ok(Board::SeedCustomJson),
             "pod" => Ok(Board::Pod),
             "patch" => Ok(Board::Patch),
             "patch_init" => Ok(Board::PatchInit),
@@ -45,7 +45,7 @@ impl FromStr for Board {
 impl Board {
     pub fn to_str(&self) -> String {
         match self {
-            Board::SeedCustomJson => "seed_custom_json".to_string(),
+            Board::SeedCustomJson => "seed".to_string(),
             Board::Pod => "pod".to_string(),
             Board::Patch => "patch".to_string(),
             Board::PatchInit => "patch_init".to_string(),

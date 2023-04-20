@@ -10,7 +10,7 @@ async function main() {
 function onSelectBoard(boardValue) {
   console.log('onSelectBoard', boardValue);
 
-  if (boardValue === 'seed_custom_json') {
+  if (boardValue === 'seed') {
     document.getElementById('board-def-container').classList.remove('hidden');
   } else {
     document.getElementById('board-def-container').classList.add('hidden');

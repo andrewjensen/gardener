@@ -182,9 +182,20 @@ async fn generate_cpp_code(
     filename_patch.push("uploads");
     filename_patch.push(format!("{patch_id}.pd"));
 
+    let mut filename_board_def = env_config.dir_workspace.clone();
+    filename_board_def.push("uploads");
+    filename_board_def.push(format!("{patch_id}_board_def.json"));
+
     let mut command = Command::new("python3");
+    command.arg(filename_pd2dsy_script.as_path());
+
+    if let Board::SeedCustomJson = board {
+        command
+            .arg("--custom-json")
+            .arg(filename_board_def.as_path());
+    }
+
     command
-        .arg(filename_pd2dsy_script.as_path())
         .arg("--board")
         .arg(board.to_str())
         .arg("--directory")
