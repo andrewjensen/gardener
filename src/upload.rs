@@ -1,4 +1,5 @@
 use actix_multipart::{Field, Multipart};
+use actix_web::http::header::{ContentDisposition, DispositionParam, DispositionType};
 use actix_web::web;
 use anyhow::{anyhow, Result};
 use futures_util::StreamExt as _;
@@ -169,33 +170,53 @@ async fn write_board_def_to_disk(patch_id: &str, file_contents: &str) -> Result<
     }
 }
 
-// TODO: process board definitions
 fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> UploadFormItem {
-    if let Some(content_disposition_header) = multipart_field.headers().get("content-disposition") {
-        let content_disposition = content_disposition_header.to_str().unwrap();
-        debug!("content-disposition: {}", content_disposition);
+    let content_disposition = multipart_field.content_disposition();
 
-        if content_disposition.contains("name=\"board\"") {
+    match (&content_disposition.disposition, multipart_field.name()) {
+        (&DispositionType::FormData, "board") => {
             let board_option = Board::from_str(chunk_contents).unwrap();
             debug!("Parsed a board option: {:?}", board_option);
             return UploadFormItem::BoardOption(board_option);
         }
-
-        if content_disposition.contains("name=\"pd_patch\"")
-            && content_disposition.contains("filename=")
-        {
-            let filename_captures = REGEX_FILENAME.captures(content_disposition).unwrap();
-            let filename = filename_captures.get(1).unwrap().as_str();
-
-            if !filename.is_empty() && !chunk_contents.is_empty() {
+        (&DispositionType::FormData, "pd_patch") => {
+            let filename = get_filename(&content_disposition);
+            if filename.is_some() && !chunk_contents.is_empty() {
+                let filename = filename.unwrap();
                 debug!("Parsed a file upload: {}", filename);
                 return UploadFormItem::PatchFileUpload {
                     filename: filename.to_string(),
                     file_contents: chunk_contents.to_string(),
                 };
+            } else {
+                return UploadFormItem::Unrecognized;
             }
+        }
+        (&DispositionType::FormData, "board_def") => {
+            let filename = get_filename(&content_disposition);
+            if filename.is_some() && !chunk_contents.is_empty() {
+                let filename = filename.unwrap();
+                debug!("Parsed a board definition: {}", filename);
+                return UploadFormItem::BoardDefinitionUpload {
+                    filename: filename.to_string(),
+                    file_contents: chunk_contents.to_string(),
+                };
+            } else {
+                return UploadFormItem::Unrecognized;
+            }
+        }
+        _ => {
+            return UploadFormItem::Unrecognized;
+        }
+    }
+}
+
+fn get_filename(content_disposition: &ContentDisposition) -> Option<String> {
+    for param in content_disposition.parameters.iter() {
+        if let DispositionParam::Filename(filename) = param {
+            return Some(filename.to_string());
         }
     }
 
-    UploadFormItem::Unrecognized
+    None
 }
