@@ -177,37 +177,35 @@ fn parse_upload_form_item(multipart_field: &Field, chunk_contents: &str) -> Uplo
         (&DispositionType::FormData, "board") => {
             let board_option = Board::from_str(chunk_contents).unwrap();
             debug!("Parsed a board option: {:?}", board_option);
-            return UploadFormItem::BoardOption(board_option);
+            UploadFormItem::BoardOption(board_option)
         }
         (&DispositionType::FormData, "pd_patch") => {
-            let filename = get_filename(&content_disposition);
-            if filename.is_some() && !chunk_contents.is_empty() {
-                let filename = filename.unwrap();
-                debug!("Parsed a file upload: {}", filename);
-                return UploadFormItem::PatchFileUpload {
-                    filename: filename.to_string(),
-                    file_contents: chunk_contents.to_string(),
-                };
-            } else {
-                return UploadFormItem::Unrecognized;
+            let filename = get_filename(content_disposition);
+            match (filename, chunk_contents.is_empty()) {
+                (Some(filename), false) => {
+                    debug!("Parsed a file upload: {}", filename);
+                    UploadFormItem::PatchFileUpload {
+                        filename,
+                        file_contents: chunk_contents.to_string(),
+                    }
+                }
+                _ => UploadFormItem::Unrecognized,
             }
         }
         (&DispositionType::FormData, "board_def") => {
-            let filename = get_filename(&content_disposition);
-            if filename.is_some() && !chunk_contents.is_empty() {
-                let filename = filename.unwrap();
-                debug!("Parsed a board definition: {}", filename);
-                return UploadFormItem::BoardDefinitionUpload {
-                    filename: filename.to_string(),
-                    file_contents: chunk_contents.to_string(),
-                };
-            } else {
-                return UploadFormItem::Unrecognized;
+            let filename = get_filename(content_disposition);
+            match (filename, chunk_contents.is_empty()) {
+                (Some(filename), false) => {
+                    debug!("Parsed a board definition: {}", filename);
+                    UploadFormItem::BoardDefinitionUpload {
+                        filename,
+                        file_contents: chunk_contents.to_string(),
+                    }
+                }
+                _ => UploadFormItem::Unrecognized,
             }
         }
-        _ => {
-            return UploadFormItem::Unrecognized;
-        }
+        _ => UploadFormItem::Unrecognized,
     }
 }
 
