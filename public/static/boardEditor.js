@@ -2,6 +2,11 @@
 
 const BLOCKLY_CONTAINER_ID = 'board-editor-workspace';
 
+const LISTEN_EVENT_TYPES = [
+  'move',
+  'change',
+]
+
 console.log('Hello from the board editor');
 
 Blockly.Blocks['board_definition'] = {
@@ -15,10 +20,10 @@ Blockly.Blocks['board_definition'] = {
         .appendField("audio channels")
         .appendField(new Blockly.FieldNumber(2, 0, 2, 1), "AUDIO_CHANNELS");
     this.appendStatementInput("COMPONENTS")
-        .setCheck(null)
+        .setCheck("Component")
         .appendField("components");
     this.appendStatementInput("ALIASES")
-        .setCheck(null)
+        .setCheck("Alias")
         .appendField("aliases");
     this.setColour(230);
     this.setTooltip("");
@@ -36,8 +41,8 @@ Blockly.Blocks['board_component_switch'] = {
     this.appendDummyInput()
         .appendField("pin")
         .appendField(new Blockly.FieldNumber(0, 0, 100, 1), "PIN");
-    this.setPreviousStatement(true, null);
-    this.setNextStatement(true, null);
+    this.setPreviousStatement(true, "Component");
+    this.setNextStatement(true, "Component");
     this.setColour(0);
     this.setTooltip("");
     this.setHelpUrl("");
@@ -54,9 +59,24 @@ Blockly.Blocks['board_component_analog_control'] = {
     this.appendDummyInput()
         .appendField("pin")
         .appendField(new Blockly.FieldNumber(0, 0, 100, 1), "PIN");
-    this.setPreviousStatement(true, null);
-    this.setNextStatement(true, null);
+    this.setPreviousStatement(true, "Component");
+    this.setNextStatement(true, "Component");
     this.setColour(0);
+    this.setTooltip("");
+    this.setHelpUrl("");
+  }
+};
+
+Blockly.Blocks['board_alias'] = {
+  init: function() {
+    this.appendDummyInput()
+        .appendField("Alias:")
+        .appendField(new Blockly.FieldTextInput("my_alias"), "ALIAS")
+        .appendField("is an alias of")
+        .appendField(new Blockly.FieldTextInput("my_component_name"), "NAME");
+    this.setPreviousStatement(true, "Alias");
+    this.setNextStatement(true, "Alias");
+    this.setColour(135);
     this.setTooltip("");
     this.setHelpUrl("");
   }
@@ -76,24 +96,33 @@ const toolbox = {
     {
       "kind": "block",
       "type": "board_component_analog_control"
-    }
+    },
+    {
+      "kind": "block",
+      "type": "board_alias"
+    },
   ]
 }
 
-const workspace = Blockly.inject(BLOCKLY_CONTAINER_ID, {toolbox: toolbox});
+const workspace = Blockly.inject(BLOCKLY_CONTAINER_ID, {
+  toolbox: toolbox,
+  renderer: 'zelos',
+  // renderer: 'thrasos',
+});
 
 workspace.addChangeListener(onWorkspaceUpdate);
 
 function onWorkspaceUpdate(event) {
-  // TODO: filter out lots of event types to avoid re-renders
+  if (!LISTEN_EVENT_TYPES.includes(event.type)) {
+    return;
+  }
 
-  console.log('workspace updated');
+  console.log('workspace updated:', event.type);
 
   const workspaceDom = Blockly.Xml.workspaceToDom(workspace);
-  console.log('dom:', workspaceDom);
 
-  const xmlText = Blockly.Xml.domToPrettyText(workspaceDom);
-  console.log('dom as text:', xmlText);
+  // const xmlText = Blockly.Xml.domToPrettyText(workspaceDom);
+  // console.log('dom as text:', xmlText);
 
   const boardJson = domToBoardJson(workspaceDom);
 
@@ -121,7 +150,40 @@ function domToBoardJson(workspaceDom) {
   board.name = getBlockFieldValue(boardDefinitionBlock, 'NAME')
   board.audio.channels = parseInt(getBlockFieldValue(boardDefinitionBlock, 'AUDIO_CHANNELS'))
 
+  // Get component blocks, put into the JSON
+  const componentBlocks = boardDefinitionBlock.querySelectorAll('block[type^="board_component_');
+  for (let componentBlock of componentBlocks) {
+    const { name, definition } = parseComponent(componentBlock);
+    board.components[name] = definition;
+  }
+
   return board;
+}
+
+function parseComponent(blockNode) {
+  const name = getBlockFieldValue(blockNode, 'NAME');
+  const componentType = blockNode.getAttribute('type');
+
+  switch (componentType) {
+    case 'board_component_switch':
+      return {
+        name,
+        definition: {
+          component: 'Switch',
+          pin: parseInt(getBlockFieldValue(blockNode, 'PIN'))
+        }
+      };
+    case 'board_component_analog_control':
+      return {
+        name,
+        definition: {
+          component: 'AnalogControl',
+          pin: parseInt(getBlockFieldValue(blockNode, 'PIN'))
+        }
+      };
+    default:
+      throw new Error(`Unhandled component type: ${componentType}`);
+  }
 }
 
 function getBlockFieldValue(blockNode, fieldName) {
