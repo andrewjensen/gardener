@@ -12,7 +12,7 @@ console.log('Hello from the board editor');
 Blockly.Blocks['board_definition'] = {
   init: function() {
     this.appendDummyInput()
-        .appendField("board definition");
+        .appendField("Board Definition");
     this.appendDummyInput()
         .appendField("name")
         .appendField(new Blockly.FieldTextInput("my_cool_design"), "NAME");
@@ -34,7 +34,7 @@ Blockly.Blocks['board_definition'] = {
 Blockly.Blocks['board_component_switch'] = {
   init: function() {
     this.appendDummyInput()
-        .appendField("Switch");
+        .appendField("Component: Switch");
     this.appendDummyInput()
         .appendField("name")
         .appendField(new Blockly.FieldTextInput("my_component_name"), "NAME");
@@ -52,7 +52,7 @@ Blockly.Blocks['board_component_switch'] = {
 Blockly.Blocks['board_component_analog_control'] = {
   init: function() {
     this.appendDummyInput()
-        .appendField("Analog Control");
+        .appendField("Component: Analog Control");
     this.appendDummyInput()
         .appendField("name")
         .appendField(new Blockly.FieldTextInput("my_component_name"), "NAME");
@@ -70,7 +70,8 @@ Blockly.Blocks['board_component_analog_control'] = {
 Blockly.Blocks['board_alias'] = {
   init: function() {
     this.appendDummyInput()
-        .appendField("Alias:")
+        .appendField("Alias")
+    this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput("my_alias"), "ALIAS")
         .appendField("is an alias of")
         .appendField(new Blockly.FieldTextInput("my_component_name"), "NAME");
@@ -150,11 +151,16 @@ function domToBoardJson(workspaceDom) {
   board.name = getBlockFieldValue(boardDefinitionBlock, 'NAME')
   board.audio.channels = parseInt(getBlockFieldValue(boardDefinitionBlock, 'AUDIO_CHANNELS'))
 
-  // Get component blocks, put into the JSON
   const componentBlocks = boardDefinitionBlock.querySelectorAll('block[type^="board_component_');
   for (let componentBlock of componentBlocks) {
     const { name, definition } = parseComponent(componentBlock);
     board.components[name] = definition;
+  }
+
+  const aliasBlocks = boardDefinitionBlock.querySelectorAll('block[type="board_alias"]');
+  for (let aliasBlock of aliasBlocks) {
+    const { alias, name } = parseAlias(aliasBlock);
+    board.aliases[alias] = name;
   }
 
   return board;
@@ -184,6 +190,16 @@ function parseComponent(blockNode) {
     default:
       throw new Error(`Unhandled component type: ${componentType}`);
   }
+}
+
+function parseAlias(blockNode) {
+  const alias = getBlockFieldValue(blockNode, 'ALIAS');
+  const name = getBlockFieldValue(blockNode, 'NAME');
+
+  return {
+    alias,
+    name
+  };
 }
 
 function getBlockFieldValue(blockNode, fieldName) {
