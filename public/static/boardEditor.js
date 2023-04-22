@@ -5,9 +5,7 @@ const BLOCKLY_CONTAINER_ID = 'board-editor-workspace';
 const LISTEN_EVENT_TYPES = [
   'move',
   'change',
-]
-
-console.log('Hello from the board editor');
+];
 
 Blockly.Blocks['board_definition'] = {
   init: function() {
