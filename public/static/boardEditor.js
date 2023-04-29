@@ -2,6 +2,26 @@
 
 const BLOCKLY_CONTAINER_ID = 'board-editor-workspace';
 
+const INITIAL_WORKSPACE = {
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "board_definition",
+        "id": "7kg2pSkU+S9E_]Qz#ZF8",
+        "movable": false,
+        "deletable": false,
+        "x": 20,
+        "y": 20,
+        "fields": {
+          "NAME": "my_cool_design",
+          "AUDIO_CHANNELS": 2
+        }
+      }
+    ]
+  }
+};
+
 const LISTEN_EVENT_TYPES = [
   'move',
   'change',
@@ -86,10 +106,6 @@ const toolbox = {
   "contents": [
     {
       "kind": "block",
-      "type": "board_definition"
-    },
-    {
-      "kind": "block",
       "type": "board_component_switch"
     },
     {
@@ -107,9 +123,20 @@ const workspace = Blockly.inject(BLOCKLY_CONTAINER_ID, {
   toolbox: toolbox,
   renderer: 'zelos',
   // renderer: 'thrasos',
+  move: {
+    scrollbars: {
+      horizontal: true,
+      vertical: true,
+    }
+  }
 });
 
 workspace.addChangeListener(onWorkspaceUpdate);
+
+setTimeout(() => {
+  Blockly.serialization.workspaces.load(INITIAL_WORKSPACE, workspace);
+  console.log('Initialized workspace');
+}, 0);
 
 function onWorkspaceUpdate(event) {
   if (!LISTEN_EVENT_TYPES.includes(event.type)) {
