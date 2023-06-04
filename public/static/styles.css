@@ -168,16 +168,23 @@ footer a:hover {
   flex-direction: row;
 }
 
-#board-editor-workspace {
-  width: 600px;
-  height: 500px;
+#board-editor-left {
+  width: 1000px;
   background-color: white;
+}
+
+#board-editor-workspace {
+  width: 1000px;
+  height: 500px;
+}
+
+#board-editor-right {
+  flex-grow: 1;
+  margin-left: 4rem;
 }
 
 #board-editor-json-output {
   background-color: #f0f0f0;
-  flex-grow: 1;
-  margin-left: 4rem;
   white-space: pre;
   font-family: 'Courier New', Courier, monospace;
   overflow: auto;

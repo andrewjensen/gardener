@@ -147,8 +147,8 @@ function onWorkspaceUpdate(event) {
 
   const workspaceDom = Blockly.Xml.workspaceToDom(workspace);
 
-  // const xmlText = Blockly.Xml.domToPrettyText(workspaceDom);
-  // console.log('dom as text:', xmlText);
+  const xmlText = Blockly.Xml.domToPrettyText(workspaceDom);
+  console.log('dom as text:', xmlText);
 
   const boardJson = domToBoardJson(workspaceDom);
 
