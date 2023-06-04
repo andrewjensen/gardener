@@ -157,3 +157,35 @@ footer a:hover {
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* Board editor page */
+
+#board-editor-container {
+  background-color: #f0f0f0;
+  margin: 0 4rem;
+  height: 40rem;
+  display: flex;
+  flex-direction: row;
+}
+
+#board-editor-left {
+  width: 1000px;
+  background-color: white;
+}
+
+#board-editor-workspace {
+  width: 1000px;
+  height: 500px;
+}
+
+#board-editor-right {
+  flex-grow: 1;
+  margin-left: 4rem;
+}
+
+#board-editor-json-output {
+  background-color: #f0f0f0;
+  white-space: pre;
+  font-family: 'Courier New', Courier, monospace;
+  overflow: auto;
+}
